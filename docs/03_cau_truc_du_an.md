@@ -68,6 +68,52 @@ lib/
 
 ---
 
+### 🧠 Lý thuyết chi tiết về lib/
+
+**lib/ là gì?**
+
+- Thư mục chứa **toàn bộ source code** Flutter
+- Mọi file `.dart` đều nằm trong đây
+- Flutter chỉ compile code trong `lib/`
+
+**Cấu trúc chuẩn:**
+
+```
+lib/
+├── main.dart              # Entry point
+├── screens/              # Các màn hình
+│   ├── home/
+│   │   ├── home_screen.dart
+│   │   └── home_controller.dart
+│   └── profile/
+│       └── profile_screen.dart
+├── widgets/              # Widget tái sử dụng
+│   ├── buttons/
+│   │   └── app_button.dart
+│   └── cards/
+│       └── product_card.dart
+├── models/               # Data models
+│   ├── user.dart
+│   └── product.dart
+├── services/             # Business logic, API
+│   ├── api_service.dart
+│   └── auth_service.dart
+├── utils/                # Utilities, helpers
+│   ├── constants.dart
+│   ├── colors.dart
+│   └── helpers.dart
+└── routes/               # Navigation routes
+    └── app_routes.dart
+```
+
+**Quy tắc đặt tên:**
+
+- File: `snake_case.dart` (ví dụ: `home_screen.dart`)
+- Class: `PascalCase` (ví dụ: `HomeScreen`)
+- Variable: `camelCase` (ví dụ: `userName`)
+
+---
+
 ## 🟩 2.2. android/ — cấu hình build cho Android  
 Không cần động vào trừ khi:
 
@@ -111,6 +157,64 @@ dependencies:
 assets:
   - assets/images/
   - assets/icons/
+```
+
+---
+
+### 🧠 Lý thuyết chi tiết về pubspec.yaml
+
+**pubspec.yaml là gì?**
+
+- File cấu hình **trung tâm** của dự án Flutter
+- Quản lý dependencies, assets, metadata
+- Tương tự `package.json` trong Node.js
+
+**Cấu trúc đầy đủ:**
+
+```yaml
+name: my_app                    # Tên package
+description: A Flutter app      # Mô tả
+version: 1.0.0+1               # Version (major.minor.patch+build)
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'        # Dart SDK version
+  flutter: ">=3.0.0"            # Flutter version
+
+dependencies:                   # Thư viện production
+  flutter:
+    sdk: flutter
+  http: ^1.2.0                 # Version constraint
+  provider: ^6.0.0
+
+dev_dependencies:               # Thư viện development
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true   # Dùng Material Design icons
+  
+  assets:                        # Assets (ảnh, data)
+    - assets/images/
+    - assets/icons/
+    - assets/data/config.json
+  
+  fonts:                         # Custom fonts
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+```
+
+**Version constraints:**
+
+- `^1.2.0` - Tương thích với >=1.2.0 và <2.0.0
+- `1.2.0` - Chính xác version 1.2.0
+- `>=1.2.0 <2.0.0` - Range cụ thể
+
+**Sau khi sửa pubspec.yaml:**
+
+```bash
+flutter pub get  # Cài đặt dependencies mới
 ```
 
 ---
@@ -179,6 +283,130 @@ lib/
 
 ---
 
+### 🧠 Lý thuyết chi tiết về tổ chức thư mục
+
+**Nguyên tắc tổ chức:**
+
+1. **Separation of Concerns** - Mỗi thư mục có nhiệm vụ riêng
+2. **Reusability** - Widget/services có thể tái sử dụng
+3. **Scalability** - Dễ mở rộng khi dự án lớn
+4. **Maintainability** - Dễ tìm, dễ sửa
+
+**Chi tiết từng thư mục:**
+
+#### screens/ - Các màn hình
+
+```
+screens/
+├── home/
+│   ├── home_screen.dart
+│   └── home_controller.dart
+├── profile/
+│   ├── profile_screen.dart
+│   └── profile_controller.dart
+└── auth/
+    ├── login_screen.dart
+    └── register_screen.dart
+```
+
+**Lưu ý:** Có thể tổ chức theo feature (home/, profile/) hoặc flat (tất cả trong screens/)
+
+#### widgets/ - Widget tái sử dụng
+
+```
+widgets/
+├── buttons/
+│   ├── app_button.dart
+│   └── icon_button.dart
+├── cards/
+│   ├── product_card.dart
+│   └── user_card.dart
+└── common/
+    ├── loading_indicator.dart
+    └── error_widget.dart
+```
+
+**Lưu ý:** Chỉ đặt widget được dùng ở nhiều nơi
+
+#### models/ - Data models
+
+```
+models/
+├── user.dart
+├── product.dart
+└── order.dart
+```
+
+**Lưu ý:** Mỗi model = 1 file, có fromJson/toJson
+
+#### services/ - Business logic
+
+```
+services/
+├── api/
+│   ├── api_client.dart
+│   └── api_endpoints.dart
+├── auth/
+│   └── auth_service.dart
+└── storage/
+    └── local_storage.dart
+```
+
+**Lưu ý:** Tách theo domain (auth, api, storage)
+
+#### utils/ - Utilities
+
+```
+utils/
+├── constants.dart      # Hằng số
+├── app_colors.dart     # Màu sắc
+├── app_styles.dart     # Text styles
+└── helpers.dart        # Helper functions
+```
+
+---
+
+### 🌟 Ví dụ thực tế: Cấu trúc dự án E-commerce
+
+```
+lib/
+├── main.dart
+│
+├── screens/
+│   ├── home/
+│   │   └── home_screen.dart
+│   ├── product/
+│   │   ├── product_list_screen.dart
+│   │   └── product_detail_screen.dart
+│   └── cart/
+│       └── cart_screen.dart
+│
+├── widgets/
+│   ├── product_card.dart
+│   ├── cart_item.dart
+│   └── app_button.dart
+│
+├── models/
+│   ├── product.dart
+│   ├── cart_item.dart
+│   └── user.dart
+│
+├── services/
+│   ├── product_service.dart
+│   ├── cart_service.dart
+│   └── api_service.dart
+│
+├── utils/
+│   ├── constants.dart
+│   ├── app_colors.dart
+│   └── formatters.dart
+│
+└── routes/
+    └── app_routes.dart
+```
+
+---
+
 # 5. **Asset management – cách thêm ảnh, font, icon vào Flutter**
 
 Tạo thư mục assets:
@@ -203,6 +431,74 @@ Ví dụ dùng ảnh:
 ```dart
 Image.asset("assets/images/banner.png");
 ```
+
+---
+
+### 🧠 Lý thuyết chi tiết về Assets
+
+**Assets là gì?**
+
+- File tĩnh: ảnh, font, icon, JSON data
+- Được bundle vào app khi build
+- Truy cập qua `Image.asset()`, `rootBundle.loadString()`
+
+**Cấu trúc thư mục assets:**
+
+```
+project_root/
+├── lib/
+├── assets/
+│   ├── images/
+│   │   ├── logo.png
+│   │   ├── banner.jpg
+│   │   └── icons/
+│   │       └── app_icon.png
+│   ├── fonts/
+│   │   └── custom_font.ttf
+│   └── data/
+│       └── config.json
+└── pubspec.yaml
+```
+
+**Khai báo trong pubspec.yaml:**
+
+```yaml
+flutter:
+  assets:
+    # Toàn bộ thư mục
+    - assets/images/
+    - assets/icons/
+    
+    # File cụ thể
+    - assets/images/logo.png
+    - assets/data/config.json
+  
+  fonts:
+    - family: CustomFont
+      fonts:
+        - asset: assets/fonts/CustomFont-Regular.ttf
+        - asset: assets/fonts/CustomFont-Bold.ttf
+          weight: 700
+```
+
+**Sử dụng assets:**
+
+```dart
+// Ảnh
+Image.asset("assets/images/logo.png")
+
+// Font (trong TextStyle)
+TextStyle(fontFamily: "CustomFont")
+
+// JSON data
+String jsonString = await rootBundle.loadString("assets/data/config.json");
+```
+
+**Lưu ý:**
+
+- Đường dẫn bắt đầu từ `assets/`
+- Sau khi thêm assets, chạy `flutter pub get`
+- Hot reload không áp dụng cho assets mới (cần restart)
 
 ---
 
@@ -256,6 +552,197 @@ lib/
 
 ---
 
+## 🔴 Case Study: Các lỗi chi tiết và cách xử lý
+
+### Case Study 1: Tất cả code trong main.dart
+
+#### ❌ Vấn đề:
+
+```dart
+// main.dart - 2000+ dòng
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  // 500 dòng code
+}
+
+class HomeScreen extends StatelessWidget {
+  // 500 dòng code
+}
+
+class ProfileScreen extends StatelessWidget {
+  // 500 dòng code
+}
+// ... nhiều class khác
+```
+
+**Hậu quả:**
+- Khó tìm code
+- Khó maintain
+- Khó làm việc nhóm
+- Performance kém (hot reload chậm)
+
+#### ✅ Giải pháp:
+
+```dart
+// main.dart - Chỉ 20 dòng
+import 'package:my_app/screens/home/home_screen.dart';
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: HomeScreen(),
+    );
+  }
+}
+```
+
+```
+lib/
+├── main.dart
+├── screens/
+│   ├── home_screen.dart
+│   └── profile_screen.dart
+└── widgets/
+    └── app_button.dart
+```
+
+---
+
+### Case Study 2: Đặt tên file không chuẩn
+
+#### ❌ Vấn đề:
+
+```
+lib/
+  screen1.dart
+  screen2.dart
+  widget1.dart
+  data.dart
+```
+
+**Hậu quả:**
+- Không biết file nào làm gì
+- Khó tìm code
+- Khó maintain
+
+#### ✅ Giải pháp:
+
+```
+lib/
+  screens/
+    home_screen.dart
+    profile_screen.dart
+  widgets/
+    product_card.dart
+    app_button.dart
+  models/
+    user.dart
+    product.dart
+```
+
+**Quy tắc đặt tên:**
+- File: `snake_case.dart`
+- Mô tả rõ ràng: `home_screen.dart` thay vì `screen1.dart`
+
+---
+
+### Case Study 3: Quên khai báo assets
+
+#### ❌ Vấn đề:
+
+```dart
+Image.asset("assets/images/logo.png"); // Lỗi: Asset not found
+```
+
+**Nguyên nhân:** Quên khai báo trong `pubspec.yaml`
+
+#### ✅ Giải pháp:
+
+```yaml
+flutter:
+  assets:
+    - assets/images/
+```
+
+Sau đó chạy: `flutter pub get`
+
+---
+
+### Case Study 4: Import sai đường dẫn
+
+#### ❌ Vấn đề:
+
+```dart
+// Trong home_screen.dart
+import '../models/user.dart'; // Lỗi nếu cấu trúc sai
+```
+
+#### ✅ Giải pháp:
+
+```dart
+// Đúng cấu trúc
+lib/
+├── screens/
+│   └── home_screen.dart
+└── models/
+    └── user.dart
+
+// Import đúng
+import 'package:my_app/models/user.dart';
+```
+
+**Lưu ý:** Dùng `package:` import thay vì relative import
+
+---
+
+### Case Study 5: Widget không tái sử dụng được
+
+#### ❌ Vấn đề:
+
+```dart
+// Trong home_screen.dart
+Widget buildButton() {
+  return ElevatedButton(...); // Code lặp lại ở nhiều nơi
+}
+```
+
+#### ✅ Giải pháp:
+
+```dart
+// widgets/app_button.dart
+class AppButton extends StatelessWidget {
+  final String text;
+  final VoidCallback onPressed;
+  
+  const AppButton({
+    required this.text,
+    required this.onPressed,
+    super.key,
+  });
+  
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(...);
+  }
+}
+
+// Sử dụng
+AppButton(
+  text: "Click me",
+  onPressed: () {},
+)
+```
+
+---
+
 # 8. **Các lỗi thường gặp**
 
 | Lỗi | Nguyên nhân | Cách sửa |
@@ -268,44 +755,184 @@ lib/
 
 ---
 
-# 9. **Bài tập thực hành**
+# 9. **Best Practices & Tips**
 
-1. Tạo project `flutter_structure_demo`.  
-2. Tự chia lại thư mục lib/ theo đúng chuẩn.  
-3. Thêm thư mục assets/images và khai báo trong pubspec.yaml.  
-4. Tạo 2 screens: HomeScreen, ProfileScreen.  
-5. Tạo widget button tái sử dụng có tên: `AppButton`.  
-6. Tạo model User có name, avatar, age.
+## 9.1. **Tổ chức file Best Practices**
+
+### 1. Mỗi file chỉ làm 1 việc
+
+```dart
+// ✅ ĐÚNG: 1 class = 1 file
+// user.dart
+class User {
+  // ...
+}
+
+// ❌ SAI: Nhiều class trong 1 file
+// models.dart
+class User { }
+class Product { }
+class Order { }
+```
+
+### 2. Đặt tên file rõ ràng
+
+```dart
+// ✅ ĐÚNG
+home_screen.dart
+product_card.dart
+user_model.dart
+
+// ❌ SAI
+screen1.dart
+card.dart
+data.dart
+```
+
+### 3. Tổ chức theo feature hoặc type
+
+```
+// Theo feature
+lib/
+  features/
+    home/
+      home_screen.dart
+      home_controller.dart
+    profile/
+      profile_screen.dart
+
+// Theo type (đơn giản hơn cho người mới)
+lib/
+  screens/
+    home_screen.dart
+  widgets/
+    product_card.dart
+```
+
+### 4. Import đúng cách
+
+```dart
+// ✅ ĐÚNG: Dùng package import
+import 'package:my_app/models/user.dart';
+import 'package:my_app/widgets/app_button.dart';
+
+// ❌ SAI: Relative import phức tạp
+import '../../../models/user.dart';
+```
+
+## 9.2. **pubspec.yaml Best Practices**
+
+### 1. Sắp xếp dependencies theo thứ tự
+
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Third-party packages
+  http: ^1.2.0
+  provider: ^6.0.0
+```
+
+### 2. Dùng version constraints hợp lý
+
+```yaml
+# ✅ ĐÚNG: Cho phép patch updates
+http: ^1.2.0
+
+# ❌ SAI: Quá chặt
+http: 1.2.0
+```
+
+### 3. Khai báo assets rõ ràng
+
+```yaml
+assets:
+  - assets/images/
+  - assets/icons/
+  # Không nên: - assets/ (quá rộng)
+```
 
 ---
 
-# 10. **Mini Test cuối chương**
+# 10. **Bài tập thực hành**
+
+1. **Tạo project `flutter_structure_demo`.**  
+   → Chạy: `flutter create flutter_structure_demo`
+
+2. **Tự chia lại thư mục lib/ theo đúng chuẩn.**  
+   → Xem cấu trúc phần 4
+
+3. **Thêm thư mục assets/images và khai báo trong pubspec.yaml.**  
+   → Xem phần 5
+
+4. **Tạo 2 screens: HomeScreen, ProfileScreen.**  
+   → Đặt trong `lib/screens/`
+
+5. **Tạo widget button tái sử dụng có tên: `AppButton`.**  
+   → Đặt trong `lib/widgets/`
+
+6. **Tạo model User có name, avatar, age.**  
+   → Đặt trong `lib/models/`
+
+7. **Tạo service API giả lập fetch users.**  
+   → Đặt trong `lib/services/`
+
+8. **Tạo file constants.dart chứa app colors và sizes.**  
+   → Đặt trong `lib/utils/`
+
+9. **Tổ chức lại dự án hiện tại theo cấu trúc chuẩn.**
+
+10. **Tạo feature module hoàn chỉnh: Product (screen, model, service, widget).**
+
+---
+
+# 11. **Mini Test cuối chương**
 
 **Câu 1:** Thư mục nào quan trọng nhất trong Flutter?  
-→ `lib/`
+→ `lib/` - chứa toàn bộ source code Flutter.
 
 **Câu 2:** File quản lý dependencies là gì?  
-→ `pubspec.yaml`
+→ `pubspec.yaml` - quản lý packages, assets, metadata.
 
 **Câu 3:** Tại sao phải tách screens/widgets/models?  
-→ Code sạch, dễ sửa, dễ mở rộng.
+→ Code sạch, dễ sửa, dễ mở rộng, dễ làm việc nhóm.
 
 **Câu 4:** Cách thêm assets vào Flutter?  
-→ Tạo thư mục → khai báo trong pubspec.yaml → dùng bằng Image.asset
+→ Tạo thư mục assets/ → khai báo trong pubspec.yaml → chạy `flutter pub get` → dùng bằng `Image.asset()`.
 
 **Câu 5:** File đầu vào của Flutter app là gì?  
-→ main.dart
+→ `main.dart` - chứa hàm `main()` và `MyApp` widget.
+
+**Câu 6:** Quy tắc đặt tên file trong Flutter?  
+→ `snake_case.dart` (ví dụ: `home_screen.dart`).
+
+**Câu 7:** Tại sao không nên viết tất cả code trong main.dart?  
+→ Khó maintain, hot reload chậm, khó làm việc nhóm, code rối.
+
+**Câu 8:** Sau khi sửa pubspec.yaml cần làm gì?  
+→ Chạy `flutter pub get` để cài đặt dependencies/load assets mới.
+
+**Câu 9:** Import file trong Flutter dùng cách nào?  
+→ Dùng `package:` import: `import 'package:my_app/models/user.dart';`.
+
+**Câu 10:** Cấu trúc thư mục lib/ chuẩn gồm những gì?  
+→ screens/, widgets/, models/, services/, utils/, routes/.
 
 ---
 
 # 📝 Quick Notes (Ghi nhớ nhanh)
 
-- Dự án Flutter = lib/ là trung tâm.  
-- Không bao giờ để mọi thứ trong main.dart.  
-- Tổ chức thư mục đúng giúp học Flutter dễ gấp 3 lần.  
-- pubspec.yaml = trái tim cấu hình dự án.  
-- Assets phải được khai báo mới dùng được.  
-- Chia module: screens – widgets – models – services – utils.
+- **Dự án Flutter = lib/** là trung tâm, chứa toàn bộ source code.  
+- **Không bao giờ** để mọi thứ trong main.dart - tách thành các file riêng.  
+- **Tổ chức thư mục đúng** giúp học Flutter dễ gấp 3 lần, code dễ maintain.  
+- **pubspec.yaml** = trái tim cấu hình dự án (dependencies, assets, metadata).  
+- **Assets phải được khai báo** trong pubspec.yaml mới dùng được.  
+- **Chia module**: screens – widgets – models – services – utils – routes.  
+- **Đặt tên file**: snake_case.dart, class: PascalCase, variable: camelCase.  
+- **Import**: Dùng package import thay vì relative import.  
+- **Mỗi file 1 class**: Dễ tìm, dễ maintain, dễ test.  
+- **Sau khi sửa pubspec.yaml**: Chạy `flutter pub get`.
 
 ---
 
