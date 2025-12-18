@@ -38,6 +38,80 @@ Nếu dữ liệu thay đổi → UI phải thay đổi theo.
 
 ---
 
+### 🧠 Giảng giải chi tiết về State
+
+**State trong Flutter là gì?**
+
+State là **dữ liệu có thể thay đổi** và khi thay đổi, nó **yêu cầu UI phải được cập nhật lại** để phản ánh sự thay đổi đó.
+
+**Đặc điểm của State:**
+
+1. **Mutable (có thể thay đổi)** - Khác với Widget (immutable)
+2. **Ảnh hưởng trực tiếp đến UI** - Khi state đổi, UI phải đổi
+3. **Được quản lý bởi State class** - Trong StatefulWidget
+4. **Cần setState() để cập nhật** - Không thể thay đổi trực tiếp
+
+**Phân loại State:**
+
+```
+State
+├── Ephemeral State (Local State)
+│   └── Chỉ ảnh hưởng 1 widget
+│       Ví dụ: TextField value, Switch on/off
+│
+└── App State (Global State)
+    └── Ảnh hưởng nhiều widget
+        Ví dụ: User login, Theme, Shopping cart
+```
+
+**Ví dụ minh họa trực quan:**
+
+```dart
+// State = biến có thể thay đổi và ảnh hưởng UI
+class CounterApp extends StatefulWidget {
+  @override
+  State<CounterApp> createState() => _CounterAppState();
+}
+
+class _CounterAppState extends State<CounterApp> {
+  // ĐÂY LÀ STATE - biến có thể thay đổi
+  int count = 0;  // ← State này ảnh hưởng đến Text widget
+  
+  void increase() {
+    setState(() {
+      count++;  // Thay đổi state
+    });
+    // UI tự động cập nhật: Text("Count: $count") hiển thị số mới
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    // UI phụ thuộc vào state 'count'
+    return Text("Count: $count");  // ← UI thay đổi khi count thay đổi
+  }
+}
+```
+
+**Flow minh họa:**
+
+```
+User nhấn nút "Tăng"
+    ↓
+increase() được gọi
+    ↓
+setState(() { count++; })
+    ↓
+Flutter biết state đã thay đổi
+    ↓
+build() được gọi lại
+    ↓
+Text("Count: $count") hiển thị số mới
+    ↓
+UI cập nhật: "Count: 0" → "Count: 1"
+```
+
+---
+
 ### 🎒 Ví dụ đời sống  
 Bạn nhìn một nồi cơm điện:
 
@@ -48,6 +122,178 @@ Bạn nhìn một nồi cơm điện:
 Đèn đổi màu = UI thay đổi theo trạng thái của nồi.
 
 Đó chính là **state**.
+
+**Giải thích chi tiết:**
+
+```
+Nồi cơm điện có STATE = "trạng thái nấu"
+├── State = "đang nấu" → UI = đèn đỏ
+├── State = "đã chín" → UI = đèn vàng  
+└── State = "giữ ấm" → UI = đèn xanh
+
+Khi state thay đổi → UI (đèn) tự động thay đổi theo
+```
+
+**Tương tự trong Flutter:**
+
+```dart
+class RiceCooker extends StatefulWidget {
+  @override
+  State<RiceCooker> createState() => _RiceCookerState();
+}
+
+class _RiceCookerState extends State<RiceCooker> {
+  // STATE = trạng thái nấu
+  String cookingState = "đang nấu";  // ← State
+  
+  @override
+  Widget build(BuildContext context) {
+    // UI thay đổi theo state
+    Color lightColor;
+    if (cookingState == "đang nấu") {
+      lightColor = Colors.red;      // ← UI = đèn đỏ
+    } else if (cookingState == "đã chín") {
+      lightColor = Colors.yellow;   // ← UI = đèn vàng
+    } else {
+      lightColor = Colors.green;    // ← UI = đèn xanh
+    }
+    
+    return Container(
+      color: lightColor,  // UI phụ thuộc vào state
+      child: Text("Trạng thái: $cookingState"),
+    );
+  }
+}
+```
+
+---
+
+### 🌟 Ví dụ minh họa: State ảnh hưởng UI như thế nào?
+
+**Ví dụ 1: Counter đơn giản**
+
+```dart
+class SimpleCounter extends StatefulWidget {
+  @override
+  State<SimpleCounter> createState() => _SimpleCounterState();
+}
+
+class _SimpleCounterState extends State<SimpleCounter> {
+  // STATE: Biến count
+  int count = 0;
+  
+  void increment() {
+    // Bước 1: Thay đổi state
+    setState(() {
+      count = count + 1;  // count: 0 → 1 → 2 → 3...
+    });
+    // Bước 2: Flutter tự động gọi build()
+    // Bước 3: UI cập nhật với giá trị mới
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    print("build() chạy - count = $count");
+    // UI phụ thuộc vào state 'count'
+    return Column(
+      children: [
+        Text("Số đếm: $count"),  // ← Hiển thị state
+        ElevatedButton(
+          onPressed: increment,
+          child: Text("Tăng"),
+        ),
+      ],
+    );
+  }
+}
+
+// Kết quả khi nhấn nút:
+// Lần 1: count = 0 → UI hiển thị "Số đếm: 0"
+// Lần 2: count = 1 → UI hiển thị "Số đếm: 1" (TỰ ĐỘNG CẬP NHẬT!)
+// Lần 3: count = 2 → UI hiển thị "Số đếm: 2" (TỰ ĐỘNG CẬP NHẬT!)
+```
+
+**Ví dụ 2: TextField với state**
+
+```dart
+class TextInputExample extends StatefulWidget {
+  @override
+  State<TextInputExample> createState() => _TextInputExampleState();
+}
+
+class _TextInputExampleState extends State<TextInputExample> {
+  // STATE: Nội dung text field
+  String inputText = "";  // ← State này thay đổi khi user gõ
+  
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        TextField(
+          onChanged: (value) {
+            // Khi user gõ, state thay đổi
+            setState(() {
+              inputText = value;  // State cập nhật
+            });
+            // UI tự động rebuild → Text bên dưới hiển thị text mới
+          },
+        ),
+        SizedBox(height: 20),
+        // UI này phụ thuộc vào state 'inputText'
+        Text("Bạn đã nhập: $inputText"),  // ← Tự động cập nhật
+      ],
+    );
+  }
+}
+
+// Flow:
+// User gõ "H" → inputText = "H" → UI hiển thị "Bạn đã nhập: H"
+// User gõ "e" → inputText = "He" → UI hiển thị "Bạn đã nhập: He"
+// User gõ "l" → inputText = "Hel" → UI hiển thị "Bạn đã nhập: Hel"
+```
+
+**Ví dụ 3: Toggle button**
+
+```dart
+class ToggleExample extends StatefulWidget {
+  @override
+  State<ToggleExample> createState() => _ToggleExampleState();
+}
+
+class _ToggleExampleState extends State<ToggleExample> {
+  // STATE: Trạng thái bật/tắt
+  bool isOn = false;  // ← State
+  
+  void toggle() {
+    setState(() {
+      isOn = !isOn;  // Đảo ngược: false → true → false
+    });
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // UI thay đổi theo state
+        Icon(
+          isOn ? Icons.lightbulb : Icons.lightbulb_outline,
+          size: 64,
+          color: isOn ? Colors.yellow : Colors.grey,
+        ),
+        Text(isOn ? "BẬT" : "TẮT"),
+        ElevatedButton(
+          onPressed: toggle,
+          child: Text(isOn ? "Tắt" : "Bật"),
+        ),
+      ],
+    );
+  }
+}
+
+// Khi nhấn nút:
+// isOn = false → UI: icon xám, text "TẮT", nút "Bật"
+// isOn = true  → UI: icon vàng, text "BẬT", nút "Tắt" (TỰ ĐỘNG ĐỔI!)
+```
 
 ---
 
@@ -91,6 +337,127 @@ class _CounterAppState extends State<CounterApp> {
 - StatefulWidget = cái "khung"  
 - State = dữ liệu + logic thay đổi  
 - setState() = báo Flutter: "UI ơi, rebuild lại đi!"
+
+---
+
+### 🧠 Giảng giải chi tiết: Tại sao cần 2 class?
+
+**StatefulWidget vs State - Tại sao tách ra?**
+
+Flutter tách thành 2 class vì:
+
+1. **StatefulWidget (immutable)** - Không thể thay đổi, chỉ là "khung"
+2. **State (mutable)** - Có thể thay đổi, chứa dữ liệu và logic
+
+**Ví dụ minh họa:**
+
+```dart
+// StatefulWidget = "Khung nhà" (không đổi)
+class CounterApp extends StatefulWidget {
+  const CounterApp({super.key});  // Immutable - không thể thay đổi
+  
+  @override
+  State<CounterApp> createState() => _CounterAppState();
+  // Tạo ra "Người ở trong nhà" (State) - có thể thay đổi
+}
+
+// State = "Người ở trong nhà" (có thể thay đổi)
+class _CounterAppState extends State<CounterApp> {
+  int count = 0;  // ← Dữ liệu có thể thay đổi
+  
+  void increase() {
+    setState(() {
+      count++;  // ← Thay đổi được!
+    });
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Text("Count: $count");
+  }
+}
+```
+
+**So sánh trực quan:**
+
+```
+StatefulWidget (Immutable - Không đổi)
+├── Giống như: "Cái hộp"
+├── Không thể thay đổi sau khi tạo
+└── Chỉ là "khung" để tạo State
+
+State (Mutable - Có thể đổi)
+├── Giống như: "Nội dung trong hộp"
+├── Có thể thay đổi (count, text, list...)
+└── Chứa dữ liệu và logic thay đổi
+```
+
+**Ví dụ minh họa step-by-step:**
+
+```dart
+// BƯỚC 1: Tạo StatefulWidget (khung)
+class MyCounter extends StatefulWidget {
+  const MyCounter({super.key});
+  
+  @override
+  State<MyCounter> createState() => _MyCounterState();
+  // Tạo State object
+}
+
+// BƯỚC 2: State được tạo (1 lần duy nhất)
+class _MyCounterState extends State<MyCounter> {
+  int count = 0;  // ← State variable
+  
+  // BƯỚC 3: build() được gọi lần đầu
+  @override
+  Widget build(BuildContext context) {
+    return Text("Count: $count");  // Hiển thị: "Count: 0"
+  }
+}
+
+// BƯỚC 4: User nhấn nút → increase() được gọi
+void increase() {
+  setState(() {
+    count++;  // count: 0 → 1
+  });
+  // Flutter tự động gọi build() lại
+}
+
+// BƯỚC 5: build() được gọi lại
+@override
+Widget build(BuildContext context) {
+  return Text("Count: $count");  // Hiển thị: "Count: 1" (ĐÃ ĐỔI!)
+}
+```
+
+**Tại sao không dùng 1 class?**
+
+```dart
+// ❌ KHÔNG THỂ: Widget là immutable
+class CounterApp extends StatelessWidget {
+  int count = 0;  // Lỗi! Không thể thay đổi
+  
+  void increase() {
+    count++;  // Lỗi! StatelessWidget không có setState
+  }
+}
+
+// ✅ ĐÚNG: Phải tách ra 2 class
+class CounterApp extends StatefulWidget {  // Immutable
+  @override
+  State<CounterApp> createState() => _CounterAppState();
+}
+
+class _CounterAppState extends State<CounterApp> {  // Mutable
+  int count = 0;  // Có thể thay đổi
+  
+  void increase() {
+    setState(() {
+      count++;  // OK!
+    });
+  }
+}
+```
 
 ---
 
@@ -208,6 +575,148 @@ print(count);
 
 ---
 
+### 🔍 Giảng giải chi tiết: Tại sao không có setState thì UI không đổi?
+
+**Ví dụ minh họa trực quan:**
+
+```dart
+class WrongCounter extends StatefulWidget {
+  @override
+  State<WrongCounter> createState() => _WrongCounterState();
+}
+
+class _WrongCounterState extends State<WrongCounter> {
+  int count = 0;
+  
+  void increase() {
+    // ❌ SAI: Thay đổi state nhưng KHÔNG có setState
+    count++;  // count thay đổi: 0 → 1 → 2...
+    print("count = $count");  // Console: count = 1, 2, 3...
+    // NHƯNG UI VẪN HIỂN THỊ "Count: 0"!
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text("Count: $count"),  // ← Vẫn hiển thị 0 dù count đã = 3!
+        ElevatedButton(
+          onPressed: increase,
+          child: Text("Tăng"),
+        ),
+      ],
+    );
+  }
+}
+```
+
+**Giải thích tại sao:**
+
+```
+Bước 1: User nhấn nút "Tăng"
+    ↓
+Bước 2: increase() được gọi
+    ↓
+Bước 3: count++ → count = 1 (biến đã thay đổi trong bộ nhớ)
+    ↓
+Bước 4: NHƯNG Flutter KHÔNG BIẾT count đã thay đổi!
+    ↓
+Bước 5: build() KHÔNG được gọi lại
+    ↓
+KẾT QUẢ: UI vẫn hiển thị "Count: 0" (giá trị cũ)
+```
+
+**So sánh với cách đúng:**
+
+```dart
+void increase() {
+  // ✅ ĐÚNG: Có setState
+  setState(() {
+    count++;  // count = 1
+  });
+  // Flutter biết state đã thay đổi → gọi build() → UI cập nhật
+}
+```
+
+**Flow khi có setState:**
+
+```
+Bước 1: User nhấn nút "Tăng"
+    ↓
+Bước 2: increase() được gọi
+    ↓
+Bước 3: setState(() { count++; })
+    ↓
+Bước 4: Flutter đánh dấu widget "dirty" (cần rebuild)
+    ↓
+Bước 5: build() được gọi lại tự động
+    ↓
+Bước 6: Text("Count: $count") đọc count mới = 1
+    ↓
+KẾT QUẢ: UI hiển thị "Count: 1" (giá trị mới) ✅
+```
+
+**Ví dụ debug để hiểu rõ:**
+
+```dart
+class DebugCounter extends StatefulWidget {
+  @override
+  State<DebugCounter> createState() => _DebugCounterState();
+}
+
+class _DebugCounterState extends State<DebugCounter> {
+  int count = 0;
+  
+  void increaseWrong() {
+    // ❌ SAI: Không có setState
+    count++;
+    print("🔴 count trong bộ nhớ = $count");
+    print("🔴 NHƯNG build() KHÔNG được gọi!");
+    print("🔴 UI vẫn hiển thị giá trị cũ!");
+  }
+  
+  void increaseCorrect() {
+    // ✅ ĐÚNG: Có setState
+    setState(() {
+      count++;
+    });
+    print("🟢 count trong bộ nhớ = $count");
+    print("🟢 build() SẼ được gọi!");
+    print("🟢 UI sẽ cập nhật với giá trị mới!");
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    print("📱 build() được gọi - count = $count");
+    return Column(
+      children: [
+        Text("Count: $count"),
+        ElevatedButton(
+          onPressed: increaseWrong,
+          child: Text("Tăng (SAI)"),
+        ),
+        ElevatedButton(
+          onPressed: increaseCorrect,
+          child: Text("Tăng (ĐÚNG)"),
+        ),
+      ],
+    );
+  }
+}
+
+// Kết quả khi nhấn "Tăng (SAI)":
+// Console: 🔴 count trong bộ nhớ = 1
+// Console: 🔴 NHƯNG build() KHÔNG được gọi!
+// UI: Vẫn hiển thị "Count: 0" ❌
+
+// Kết quả khi nhấn "Tăng (ĐÚNG)":
+// Console: 🟢 count trong bộ nhớ = 1
+// Console: 📱 build() được gọi - count = 1
+// UI: Hiển thị "Count: 1" ✅
+```
+
+---
+
 # 4. **Các loại state thường gặp**
 
 1. **Ephemeral state** (local state)  
@@ -221,6 +730,138 @@ print(count);
    - theme  
    - giỏ hàng  
 → Dùng Provider / Riverpod / BLoC (sẽ học ở chương sau).
+
+---
+
+### 🧠 Giảng giải chi tiết: Phân biệt Ephemeral vs App-wide State
+
+**Ephemeral State (Local State) - State cục bộ**
+
+- **Định nghĩa:** State chỉ ảnh hưởng đến **1 widget** hoặc **1 màn hình**
+- **Vòng đời:** Tồn tại cùng với widget, bị xóa khi widget dispose
+- **Khi nào dùng:** State đơn giản, không cần chia sẻ
+
+**Ví dụ minh họa:**
+
+```dart
+class EphemeralStateExample extends StatefulWidget {
+  @override
+  State<EphemeralStateExample> createState() => _EphemeralStateExampleState();
+}
+
+class _EphemeralStateExampleState extends State<EphemeralStateExample> {
+  // ✅ EPHEMERAL STATE: Chỉ ảnh hưởng widget này
+  int counter = 0;           // ← Chỉ widget này biết
+  bool isExpanded = false;   // ← Chỉ widget này biết
+  String inputText = "";     // ← Chỉ widget này biết
+  
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text("Counter: $counter"),  // ← Chỉ hiển thị trong widget này
+        Switch(
+          value: isExpanded,
+          onChanged: (value) {
+            setState(() {
+              isExpanded = value;  // ← Chỉ ảnh hưởng widget này
+            });
+          },
+        ),
+      ],
+    );
+  }
+}
+```
+
+**App-wide State (Global State) - State toàn cục**
+
+- **Định nghĩa:** State ảnh hưởng đến **nhiều widget** hoặc **toàn bộ app**
+- **Vòng đời:** Tồn tại độc lập với widget, không bị xóa khi widget dispose
+- **Khi nào dùng:** State cần chia sẻ giữa nhiều màn hình
+
+**Ví dụ minh họa:**
+
+```dart
+// ❌ SAI: Dùng setState cho app-wide state
+class ShoppingCartScreen extends StatefulWidget {
+  @override
+  State<ShoppingCartScreen> createState() => _ShoppingCartScreenState();
+}
+
+class _ShoppingCartScreenState extends State<ShoppingCartScreen> {
+  List<Product> cart = [];  // ← Vấn đề: Chỉ màn hình này biết
+  
+  // Vấn đề: Màn hình khác không thể truy cập cart!
+  // HomeScreen muốn hiển thị số lượng trong giỏ → KHÔNG THỂ!
+}
+
+// ✅ ĐÚNG: Dùng Provider/Riverpod cho app-wide state
+// (Sẽ học ở chương sau)
+```
+
+**Bảng so sánh:**
+
+| Đặc điểm | Ephemeral State | App-wide State |
+|----------|----------------|----------------|
+| **Phạm vi** | 1 widget/màn hình | Nhiều widget/màn hình |
+| **Cách quản lý** | setState() | Provider/Riverpod/BLoC |
+| **Vòng đời** | Cùng với widget | Độc lập với widget |
+| **Ví dụ** | TextField value, Switch on/off | User login, Shopping cart, Theme |
+
+**Ví dụ thực tế: Khi nào dùng loại nào?**
+
+```dart
+// ✅ EPHEMERAL STATE: TextField trong form
+class LoginForm extends StatefulWidget {
+  @override
+  State<LoginForm> createState() => _LoginFormState();
+}
+
+class _LoginFormState extends State<LoginForm> {
+  String email = "";      // ← Chỉ form này cần
+  String password = "";   // ← Chỉ form này cần
+  
+  // Dùng setState() là đủ
+}
+
+// ✅ APP-WIDE STATE: User đã đăng nhập
+// Nhiều màn hình cần biết: HomeScreen, ProfileScreen, SettingsScreen...
+// → Phải dùng Provider/Riverpod (sẽ học sau)
+```
+
+**Quy tắc quyết định:**
+
+```
+State chỉ dùng trong 1 widget?
+    ├── CÓ → Ephemeral State → Dùng setState()
+    └── KHÔNG → App-wide State → Dùng Provider/Riverpod
+```
+
+**Ví dụ minh họa cụ thể:**
+
+```dart
+// Ví dụ 1: EPHEMERAL - Counter chỉ trong 1 màn hình
+class CounterScreen extends StatefulWidget {
+  @override
+  State<CounterScreen> createState() => _CounterScreenState();
+}
+
+class _CounterScreenState extends State<CounterScreen> {
+  int count = 0;  // ← Chỉ màn hình này cần
+  
+  @override
+  Widget build(BuildContext context) {
+    return Text("Count: $count");  // ← Chỉ hiển thị ở đây
+  }
+}
+
+// Ví dụ 2: APP-WIDE - Shopping cart cần nhiều màn hình
+// HomeScreen: Hiển thị số lượng trong giỏ
+// ProductScreen: Thêm sản phẩm vào giỏ
+// CartScreen: Hiển thị danh sách giỏ hàng
+// → Phải dùng Provider (sẽ học chương sau)
+```
 
 ---
 
@@ -302,9 +943,208 @@ class ChildB extends StatelessWidget {
 ---
 
 ### 🎒 Ví dụ đời sống  
-State giống như “nồi cơm”.  
+State giống như "nồi cơm".  
 Nhiều người ăn thì nồi phải đặt ở phòng bếp (parent),  
 không phải ai cũng mang nồi riêng về phòng mình (child).
+
+---
+
+### 🧠 Giảng giải chi tiết: Lifting State Up với ví dụ từng bước
+
+**Tại sao cần Lifting State Up?**
+
+Khi nhiều widget con cần **chia sẻ cùng 1 state**, state phải được đặt ở **widget cha** (parent) để có thể truyền xuống cho tất cả children.
+
+**Ví dụ minh họa từng bước:**
+
+#### ❌ BƯỚC 1: Cách SAI - State ở child
+
+```dart
+// ❌ SAI: State ở ChildA, ChildB không thể truy cập
+class Parent extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ChildA(),  // Muốn hiển thị count
+        ChildB(),  // Muốn tăng count
+      ],
+    );
+  }
+}
+
+class ChildA extends StatefulWidget {
+  @override
+  State<ChildA> createState() => _ChildAState();
+}
+
+class _ChildAState extends State<ChildA> {
+  int count = 0;  // ← State ở đây
+  
+  @override
+  Widget build(BuildContext context) {
+    return Text("Count: $count");
+  }
+}
+
+class ChildB extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: () {
+        // ❌ LỖI: Không thể truy cập count của ChildA!
+        // count++;  // Không có cách nào!
+      },
+      child: Text("Tăng"),
+    );
+  }
+}
+```
+
+**Vấn đề:**
+- ChildB không thể tăng count của ChildA
+- Không có cách nào để 2 widget con chia sẻ state
+
+#### ✅ BƯỚC 2: Cách ĐÚNG - Lifting State Up
+
+```dart
+// ✅ ĐÚNG: State ở Parent, truyền xuống children
+class Parent extends StatefulWidget {
+  @override
+  State<Parent> createState() => _ParentState();
+}
+
+class _ParentState extends State<Parent> {
+  // ✅ State được "nâng lên" parent
+  int count = 0;  // ← State ở đây (parent)
+  
+  void increase() {
+    setState(() {
+      count++;  // Parent quản lý state
+    });
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // ✅ Truyền state xuống ChildA
+        ChildA(count: count),
+        // ✅ Truyền callback xuống ChildB
+        ChildB(onIncrease: increase),
+      ],
+    );
+  }
+}
+
+class ChildA extends StatelessWidget {
+  final int count;  // ← Nhận state từ parent
+  
+  const ChildA({required this.count, super.key});
+  
+  @override
+  Widget build(BuildContext context) {
+    return Text("Count: $count");  // ← Hiển thị state
+  }
+}
+
+class ChildB extends StatelessWidget {
+  final VoidCallback onIncrease;  // ← Nhận callback từ parent
+  
+  const ChildB({required this.onIncrease, super.key});
+  
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: onIncrease,  // ← Gọi callback → parent tăng count
+      child: Text("Tăng"),
+    );
+  }
+}
+```
+
+**Flow minh họa:**
+
+```
+User nhấn nút "Tăng" ở ChildB
+    ↓
+onIncrease() được gọi (callback từ parent)
+    ↓
+Parent.increase() được gọi
+    ↓
+setState(() { count++; }) trong Parent
+    ↓
+Parent.build() được gọi lại
+    ↓
+ChildA(count: count) nhận giá trị mới
+    ↓
+ChildA.build() được gọi → Hiển thị "Count: 1"
+    ↓
+ChildB vẫn giữ nguyên (không cần rebuild)
+```
+
+**Ví dụ minh họa phức tạp hơn: 3 children**
+
+```dart
+class Parent extends StatefulWidget {
+  @override
+  State<Parent> createState() => _ParentState();
+}
+
+class _ParentState extends State<Parent> {
+  // ✅ State ở parent - tất cả children đều có thể truy cập
+  int count = 0;
+  
+  void increase() => setState(() => count++);
+  void decrease() => setState(() => count--);
+  void reset() => setState(() => count = 0);
+  
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // ChildA: Hiển thị count
+        ChildA(count: count),
+        
+        // ChildB: Tăng count
+        ChildB(onIncrease: increase),
+        
+        // ChildC: Giảm count
+        ChildC(onDecrease: decrease),
+        
+        // ChildD: Reset count
+        ChildD(onReset: reset),
+      ],
+    );
+  }
+}
+
+// Tất cả children đều là StatelessWidget
+// Nhận state/callback từ parent qua constructor
+```
+
+**So sánh trực quan:**
+
+```
+❌ CÁCH SAI (State ở child):
+Parent
+├── ChildA (có state count = 0)
+└── ChildB (muốn tăng count nhưng không thể!)
+
+✅ CÁCH ĐÚNG (Lifting State Up):
+Parent (có state count = 0)
+├── ChildA (nhận count: 0)
+├── ChildB (nhận callback increase)
+├── ChildC (nhận callback decrease)
+└── ChildD (nhận callback reset)
+```
+
+**Lợi ích của Lifting State Up:**
+
+1. ✅ **Chia sẻ state** giữa nhiều widget
+2. ✅ **Single source of truth** - 1 nơi quản lý state
+3. ✅ **Dễ debug** - Biết chính xác state ở đâu
+4. ✅ **Dễ maintain** - Thay đổi ở 1 nơi, tất cả cập nhật
 
 ---
 
@@ -480,6 +1320,231 @@ class _TimerWidgetState extends State<TimerWidget> {
 ...
 4. dispose() - Widget bị huỷ
 ```
+
+---
+
+### 🧠 Giảng giải chi tiết: Lifecycle với ví dụ từng bước
+
+**Flow minh họa chi tiết:**
+
+```
+1. Widget được tạo
+   ↓
+2. initState() ← CHẠY 1 LẦN DUY NHẤT
+   ├── Tạo controller
+   ├── Khởi tạo state
+   └── Load dữ liệu ban đầu
+   ↓
+3. didChangeDependencies() ← CHẠY SAU initState
+   └── Lấy dữ liệu từ context (Theme, MediaQuery)
+   ↓
+4. build() ← CHẠY LẦN ĐẦU
+   └── Render UI lần đầu
+   ↓
+5. [User tương tác]
+   ↓
+6. setState() được gọi
+   ↓
+7. build() ← CHẠY LẠI (nhiều lần)
+   └── Render UI với state mới
+   ↓
+8. [Lặp lại bước 5-7]
+   ↓
+9. Widget bị xóa khỏi tree
+   ↓
+10. dispose() ← CHẠY 1 LẦN DUY NHẤT
+    ├── Dispose controller
+    ├── Cancel timer
+    └── Giải phóng tài nguyên
+```
+
+**Ví dụ minh họa từng bước với console log:**
+
+```dart
+class LifecycleDemo extends StatefulWidget {
+  const LifecycleDemo({super.key});
+
+  @override
+  State<LifecycleDemo> createState() => _LifecycleDemoState();
+}
+
+class _LifecycleDemoState extends State<LifecycleDemo> {
+  int count = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    print("🔵 BƯỚC 1: initState() - Widget được tạo");
+    print("   → Đây là nơi khởi tạo mọi thứ");
+    print("   → Chạy 1 LẦN DUY NHẤT");
+    
+    // ✅ ĐÚNG: Tạo controller ở đây
+    // _controller = TextEditingController();
+    
+    // ✅ ĐÚNG: Khởi tạo state
+    count = 0;
+    
+    // ✅ ĐÚNG: Load dữ liệu
+    // _loadInitialData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    print("🟢 BƯỚC 2: didChangeDependencies() - Phụ thuộc thay đổi");
+    print("   → Chạy sau initState()");
+    print("   → Có thể lấy Theme, MediaQuery từ context");
+    
+    final theme = Theme.of(context);
+    print("   → Theme brightness: ${theme.brightness}");
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    print("🟡 BƯỚC 3: build() - Xây dựng UI (count = $count)");
+    print("   → Chạy NHIỀU LẦN (sau initState, sau setState)");
+    print("   → KHÔNG đặt logic nặng ở đây!");
+    
+    return Scaffold(
+      appBar: AppBar(title: const Text("Lifecycle Demo")),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text("Count: $count", style: const TextStyle(fontSize: 24)),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                print("👆 User nhấn nút");
+                setState(() {
+                  count++;
+                  print("   → setState() được gọi - count = $count");
+                  print("   → build() SẼ được gọi lại!");
+                });
+              },
+              child: const Text("Tăng"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    print("🔴 BƯỚC 4: dispose() - Widget bị huỷ");
+    print("   → Chạy 1 LẦN DUY NHẤT khi widget bị xóa");
+    print("   → QUAN TRỌNG: Dispose controller, cancel timer");
+    
+    // ✅ ĐÚNG: Cleanup
+    _timer?.cancel();
+    // _controller.dispose();
+    
+    super.dispose();
+  }
+}
+
+// Kết quả console khi chạy:
+/*
+🔵 BƯỚC 1: initState() - Widget được tạo
+   → Đây là nơi khởi tạo mọi thứ
+   → Chạy 1 LẦN DUY NHẤT
+🟢 BƯỚC 2: didChangeDependencies() - Phụ thuộc thay đổi
+   → Chạy sau initState()
+   → Có thể lấy Theme, MediaQuery từ context
+   → Theme brightness: Brightness.light
+🟡 BƯỚC 3: build() - Xây dựng UI (count = 0)
+   → Chạy NHIỀU LẦN (sau initState, sau setState)
+   → KHÔNG đặt logic nặng ở đây!
+👆 User nhấn nút
+   → setState() được gọi - count = 1
+   → build() SẼ được gọi lại!
+🟡 BƯỚC 3: build() - Xây dựng UI (count = 1)
+   → Chạy NHIỀU LẦN (sau initState, sau setState)
+   → KHÔNG đặt logic nặng ở đây!
+👆 User nhấn nút
+   → setState() được gọi - count = 2
+   → build() SẼ được gọi lại!
+🟡 BƯỚC 3: build() - Xây dựng UI (count = 2)
+   → Chạy NHIỀU LẦN (sau initState, sau setState)
+   → KHÔNG đặt logic nặng ở đây!
+🔴 BƯỚC 4: dispose() - Widget bị huỷ
+   → Chạy 1 LẦN DUY NHẤT khi widget bị xóa
+   → QUAN TRỌNG: Dispose controller, cancel timer
+*/
+```
+
+**Ví dụ minh họa: Khi nào mỗi method được gọi?**
+
+```dart
+class LifecycleExample extends StatefulWidget {
+  const LifecycleExample({super.key});
+
+  @override
+  State<LifecycleExample> createState() => _LifecycleExampleState();
+}
+
+class _LifecycleExampleState extends State<LifecycleExample> {
+  String? data;
+  TextEditingController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    print("📌 initState() - Chạy 1 LẦN khi widget được tạo");
+    
+    // ✅ ĐÚNG: Khởi tạo ở đây
+    _controller = TextEditingController();
+    data = "Initial data";
+    
+    // ✅ ĐÚNG: Load dữ liệu async
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    await Future.delayed(Duration(seconds: 1));
+    if (mounted) {  // ✅ QUAN TRỌNG: Kiểm tra mounted
+      setState(() {
+        data = "Loaded data";
+      });
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    print("📌 didChangeDependencies() - Chạy sau initState, khi InheritedWidget thay đổi");
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    print("📌 build() - Chạy NHIỀU LẦN");
+    return Scaffold(
+      body: Center(
+        child: Text(data ?? "Loading..."),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    print("📌 dispose() - Chạy 1 LẦN khi widget bị xóa");
+    
+    // ✅ QUAN TRỌNG: Cleanup
+    _controller?.dispose();
+    
+    super.dispose();
+  }
+}
+```
+
+**Lưu ý quan trọng:**
+
+1. **initState()** - Chạy 1 lần, dùng để khởi tạo
+2. **build()** - Chạy nhiều lần, KHÔNG đặt logic nặng
+3. **dispose()** - Chạy 1 lần, LUÔN cleanup resources
+4. **mounted** - Kiểm tra trước khi setState trong async
 
 ---
 
@@ -760,6 +1825,103 @@ class _CounterAppState extends State<CounterApp> {
 
 ---
 
+### 🧠 Giảng giải từng bước: Counter App hoạt động như thế nào?
+
+**Bước 1: Khởi tạo**
+
+```dart
+class _CounterAppState extends State<CounterApp> {
+  int count = 0;  // ← State được khởi tạo = 0
+  
+  // Widget tree ban đầu:
+  // Text("Count: 0")  ← Hiển thị 0
+}
+```
+
+**Bước 2: User nhấn nút "+"**
+
+```dart
+// User nhấn nút "+"
+    ↓
+ElevatedButton(onPressed: increase) được trigger
+    ↓
+increase() được gọi
+    ↓
+setState(() => count++) được thực thi
+    ↓
+count thay đổi: 0 → 1
+    ↓
+Flutter đánh dấu widget "dirty"
+    ↓
+build() được gọi lại tự động
+    ↓
+Text("Count: $count") đọc count mới = 1
+    ↓
+UI cập nhật: "Count: 0" → "Count: 1" ✅
+```
+
+**Bước 3: User nhấn nút "-"**
+
+```dart
+// Tương tự:
+decrease() → setState(() => count--) → count: 1 → 0 → UI: "Count: 1" → "Count: 0"
+```
+
+**Bước 4: User nhấn nút "Reset"**
+
+```dart
+reset() → setState(() => count = 0) → count: bất kỳ → 0 → UI: "Count: 0"
+```
+
+**Ví dụ minh họa với debug:**
+
+```dart
+class DebugCounterApp extends StatefulWidget {
+  @override
+  State<DebugCounterApp> createState() => _DebugCounterAppState();
+}
+
+class _DebugCounterAppState extends State<DebugCounterApp> {
+  int count = 0;
+
+  void increase() {
+    print("🔵 TRƯỚC setState: count = $count");
+    setState(() {
+      count++;
+      print("🟢 TRONG setState: count = $count");
+    });
+    print("🟡 SAU setState: count = $count");
+    print("📱 build() SẼ được gọi lại!");
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    print("📱 build() được gọi - count = $count");
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text("Count: $count", style: const TextStyle(fontSize: 24)),
+        ElevatedButton(
+          onPressed: increase,
+          child: const Text("+"),
+        ),
+      ],
+    );
+  }
+}
+
+// Kết quả console khi nhấn nút "+":
+/*
+🔵 TRƯỚC setState: count = 0
+🟢 TRONG setState: count = 1
+🟡 SAU setState: count = 1
+📱 build() SẼ được gọi lại!
+📱 build() được gọi - count = 1
+*/
+```
+
+---
+
 ## 8.2. **Ví dụ: Toggle Switch (Dark/Light Mode)**
 
 ```dart
@@ -837,6 +1999,146 @@ class _LoginFormState extends State<LoginForm> {
     _passwordController.dispose();
     super.dispose();
   }
+```
+
+---
+
+### 🧠 Giảng giải chi tiết: Tại sao cần TextEditingController?
+
+**TextEditingController là gì?**
+
+- Controller quản lý nội dung của TextField
+- Cho phép đọc/ghi giá trị programmatically
+- Cần dispose để tránh memory leak
+
+**Ví dụ minh họa: Có và không có Controller**
+
+```dart
+// ❌ KHÔNG DÙNG CONTROLLER: Khó lấy giá trị
+class FormWithoutController extends StatefulWidget {
+  @override
+  State<FormWithoutController> createState() => _FormWithoutControllerState();
+}
+
+class _FormWithoutControllerState extends State<FormWithoutController> {
+  String? email;  // ← Phải dùng state để lưu
+  
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      onChanged: (value) {
+        setState(() {
+          email = value;  // Phải setState mỗi lần gõ
+        });
+      },
+    );
+  }
+  
+  void submit() {
+    print(email);  // Có thể lấy giá trị
+  }
+}
+
+// ✅ DÙNG CONTROLLER: Dễ dàng hơn
+class FormWithController extends StatefulWidget {
+  @override
+  State<FormWithController> createState() => _FormWithControllerState();
+}
+
+class _FormWithControllerState extends State<FormWithController> {
+  final TextEditingController _emailController = TextEditingController();
+  
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _emailController,  // ← Gán controller
+      // Không cần onChanged nếu chỉ cần lấy giá trị khi submit
+    );
+  }
+  
+  void submit() {
+    print(_emailController.text);  // ← Dễ dàng lấy giá trị
+  }
+  
+  @override
+  void dispose() {
+    _emailController.dispose();  // ← QUAN TRỌNG!
+    super.dispose();
+  }
+}
+```
+
+**Flow minh họa với Controller:**
+
+```
+User gõ "a" vào TextField
+    ↓
+TextField tự động cập nhật _emailController.text = "a"
+    ↓
+(Không cần setState nếu chỉ hiển thị trong TextField)
+    ↓
+User nhấn nút "Submit"
+    ↓
+_emailController.text được đọc = "a"
+    ↓
+Validate và xử lý
+```
+
+**Ví dụ minh họa: Validation real-time**
+
+```dart
+class RealTimeValidationForm extends StatefulWidget {
+  @override
+  State<RealTimeValidationForm> createState() => _RealTimeValidationFormState();
+}
+
+class _RealTimeValidationFormState extends State<RealTimeValidationForm> {
+  final TextEditingController _emailController = TextEditingController();
+  String? _emailError;  // ← State để hiển thị lỗi
+  
+  @override
+  void initState() {
+    super.initState();
+    // ✅ ĐÚNG: Lắng nghe thay đổi để validate real-time
+    _emailController.addListener(_validateEmail);
+  }
+  
+  void _validateEmail() {
+    setState(() {
+      final email = _emailController.text;
+      if (email.isEmpty) {
+        _emailError = null;  // Chưa có lỗi nếu trống
+      } else if (!email.contains("@")) {
+        _emailError = "Email phải có @";  // ← State thay đổi → UI cập nhật
+      } else {
+        _emailError = null;  // Hợp lệ
+      }
+    });
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _emailController,
+      decoration: InputDecoration(
+        labelText: "Email",
+        errorText: _emailError,  // ← UI tự động cập nhật khi _emailError thay đổi
+      ),
+    );
+  }
+  
+  @override
+  void dispose() {
+    _emailController.removeListener(_validateEmail);
+    _emailController.dispose();
+    super.dispose();
+  }
+}
+
+// Flow:
+// User gõ "a" → _emailController.text = "a" → _validateEmail() → _emailError = "Email phải có @" → UI hiển thị lỗi
+// User gõ "a@" → _emailController.text = "a@" → _validateEmail() → _emailError = null → UI ẩn lỗi
+```
 
   void _validateAndSubmit() {
     setState(() {
