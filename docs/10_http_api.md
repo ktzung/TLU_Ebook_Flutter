@@ -2297,7 +2297,431 @@ void _retry() {
 
 ---
 
-# 12. Mini Test cuối chương
+# 12. **CASE STUDY: Xây dựng ứng dụng Todo REST API hoàn chỉnh**
+
+Đây là phần quan trọng nhất để tổng hợp kiến thức. Chúng ta sẽ xây dựng một ứng dụng **Quản lý công việc (Todo App)** với đầy đủ các tính năng CRUD (Create, Read, Update, Delete) tương tác với một Mock API.
+
+Để thực hành, chúng ta sẽ dùng mock API miễn phí: `https://jsonplaceholder.typicode.com/todos`  
+(Lưu ý: API này chỉ "giả lập" các thay đổi, dữ liệu không thực sự lưu lại trên server sau khi refresh, nhưng response trả về đúng chuẩn RESTful).
+
+---
+
+## 12.1. **Phân tích bài toán & Tư duy thiết kế**
+
+Trước khi code, hãy tư duy về **Luồng dữ liệu (Data Flow)**:
+
+1.  **GET /todos**: Lấy danh sách công việc về hiển thị.
+2.  **POST /todos**: Gửi công việc mới lên server -> nhận về object vừa tạo -> thêm vào list hiển thị.
+3.  **PATCH /todos/{id}**: Gửi trạng thái `completed: true/false` -> cập nhật UI.
+4.  **DELETE /todos/{id}**: Gửi lệnh xóa -> xóa khỏi list hiển thị.
+
+**Kiến trúc đơn giản cho bài này:**
+
+```
+lib/
+├── models/
+│   └── todo.dart        # Chứa dữ liệu (id, title, completed)
+├── services/
+│   └── todo_service.dart # Chứa logic gọi API (http get, post...)
+└── screens/
+    └── todo_screen.dart  # Chứa UI & Logic cập nhật state
+```
+
+---
+
+## 12.2. **Bước 1: Thiết kế Model (Data Layer)**
+
+Dữ liệu JSON trả về từ API có dạng:
+```json
+{
+  "userId": 1,
+  "id": 1,
+  "title": "delectus aut autem",
+  "completed": false
+}
+```
+
+Tạo file `lib/models/todo.dart`:
+
+```dart
+class Todo {
+  final int id;
+  final String title;
+  bool completed; // Không final để có thể thay đổi trạng thái ở UI
+
+  Todo({
+    required this.id,
+    required this.title,
+    required this.completed,
+  });
+
+  // Factory constructor: Parse JSON thành Object
+  factory Todo.fromJson(Map<String, dynamic> json) {
+    return Todo(
+      id: json['id'] as int,
+      title: json['title'] as String,
+      completed: json['completed'] as bool,
+    );
+  }
+
+  // Method: Chuyển Object thành JSON (để gửi lên server)
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'completed': completed,
+    };
+  }
+}
+```
+
+> **Góc chuyên gia:**  
+> Tại sao `completed` không phải là `final`?  
+> Trong các architecture phức tạp (như BLoC, Redux), model thường là `immutable` (bất biến - tất cả đều final). Khi cần sửa, ta tạo ra một object mới (copy). Tuy nhiên, với ví dụ đơn giản này dùng `setState`, việc để `completed` có thể thay đổi (mutable) giúp code gọn hơn khi cập nhật checkbox.
+
+---
+
+## 12.3. **Bước 2: Xây dựng Service (API Layer)**
+
+Tạo file `lib/services/todo_service.dart`.  
+Class này chịu trách nhiệm **duy nhất** là giao tiếp với Server. Tuyệt đối không để code UI (như `showDialog`, `SnackBar`) vào đây.
+
+```dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../models/todo.dart';
+
+class TodoService {
+  static const String baseUrl = 'https://jsonplaceholder.typicode.com/todos';
+  
+  // Headers mặc định cho các request POST/PUT/PATCH
+  static const Map<String, String> _headers = {
+    'Content-Type': 'application/json; charset=UTF-8',
+  };
+
+  // 1. Lấy danh sách Todos (GET)
+  // Limit=10 để demo cho gọn, tránh lấy cả 200 items
+  static Future<List<Todo>> fetchTodos() async {
+    final response = await http.get(Uri.parse('$baseUrl?_limit=10'));
+
+    if (response.statusCode == 200) {
+      final List<dynamic> body = jsonDecode(response.body);
+      // Convert List<dynamic> -> List<Todo>
+      return body.map((json) => Todo.fromJson(json)).toList();
+    } else {
+      throw Exception('Không thể tải danh sách công việc');
+    }
+  }
+
+  // 2. Thêm Todo mới (POST)
+  static Future<Todo> addTodo(String title) async {
+    final response = await http.post(
+      Uri.parse(baseUrl),
+      headers: _headers,
+      body: jsonEncode({
+        'title': title,
+        'completed': false,
+        'userId': 1, // Mock API yêu cầu field này
+      }),
+    );
+
+    if (response.statusCode == 201) { // 201 Created
+      return Todo.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Thêm thất bại');
+    }
+  }
+
+  // 3. Cập nhật trạng thái (PATCH)
+  // Dùng PATCH thay vì PUT vì ta chỉ update 1 trường 'completed'
+  static Future<Todo> updateTodoStatus(int id, bool status) async {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/$id'),
+      headers: _headers,
+      body: jsonEncode({'completed': status}),
+    );
+
+    if (response.statusCode == 200) {
+      return Todo.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Cập nhật thất bại');
+    }
+  }
+
+  // 4. Xóa Todo (DELETE)
+  static Future<void> deleteTodo(int id) async {
+    final response = await http.delete(Uri.parse('$baseUrl/$id'));
+
+    if (response.statusCode != 200) {
+      throw Exception('Xóa thất bại');
+    }
+  }
+}
+```
+
+> **Lưu ý quan trọng:**  
+> - Luôn kiểm tra `statusCode` chuẩn (200 cho OK, 201 cho Created).  
+> - Dùng `jsonEncode` để chuyển Map -> String khi gửi đi.  
+> - Headers `Content-Type: application/json` là bắt buộc với hầu hết API hiện đại khi gửi body.
+
+---
+
+## 12.4. **Bước 3: Xây dựng UI (Presentation Layer)**
+
+Tạo file `lib/screens/todo_screen.dart`.  
+Ở đây ta sẽ dùng chiến thuật:
+1.  Load dữ liệu lần đầu bằng `initState`.
+2.  Sau mỗi hành động (Thêm/Sửa/Xóa), ta cập nhật trực tiếp vào List local để UI phản hồi ngay lập tức (**Optimistic UI**) hoặc fetch lại data tùy chiến lược. Ở đây, vì Mock API không lưu data thật, ta sẽ **cập nhật List local** dựa trên response trả về.
+
+```dart
+import 'package:flutter/material.dart';
+import '../models/todo.dart';
+import '../services/todo_service.dart';
+
+class TodoScreen extends StatefulWidget {
+  const TodoScreen({super.key});
+
+  @override
+  State<TodoScreen> createState() => _TodoScreenState();
+}
+
+class _TodoScreenState extends State<TodoScreen> {
+  // State quản lý danh sách
+  List<Todo> _todos = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTodos();
+  }
+
+  // Hàm load dữ liệu tách riêng để tái sử dụng
+  Future<void> _loadTodos() async {
+    try {
+      final todos = await TodoService.fetchTodos();
+      if (mounted) {
+        setState(() {
+          _todos = todos;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // Hàm xử lý Thêm Todo
+  Future<void> _processAddTodo(String title) async {
+    // 1. Show loading (nếu muốn) hoặc disable nút
+    try {
+      // 2. Gọi API
+      final newTodo = await TodoService.addTodo(title);
+      
+      // 3. API thành công -> Update UI
+      if (mounted) {
+        setState(() {
+          // Thêm vào đầu danh sách
+          _todos.insert(0, newTodo); 
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã thêm công việc!')),
+        );
+      }
+    } catch (e) {
+      // Xử lý lỗi
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+    }
+  }
+
+  // Hàm xử lý Xóa Todo
+  Future<void> _processDeleteTodo(int id) async {
+    // Optimistic Update: Xóa trên UI trước cho mượt
+    final index = _todos.indexWhere((element) => element.id == id);
+    final backupItem = _todos[index]; // Backup để restore nếu lỗi
+
+    setState(() {
+      _todos.removeAt(index);
+    });
+
+    try {
+      await TodoService.deleteTodo(id);
+      // Thành công thì không cần làm gì thêm vì đã xóa ở UI rồi
+    } catch (e) {
+      // Thất bại -> Khôi phục lại UI
+      if (mounted) {
+        setState(() {
+          _todos.insert(index, backupItem);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Xóa thất bại!')));
+      }
+    }
+  }
+
+  // Hàm xử lý Toggle Status
+  Future<void> _processToggle(Todo todo) async {
+    // Save previous state
+    final oldStatus = todo.completed;
+    
+    // Update UI ngay lập tức (Optimistic)
+    setState(() {
+      todo.completed = !oldStatus;
+    });
+
+    try {
+      await TodoService.updateTodoStatus(todo.id, !oldStatus);
+    } catch (e) {
+      // Revert nếu lỗi
+      if (mounted) {
+        setState(() {
+          todo.completed = oldStatus;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi cập nhật!')));
+      }
+    }
+  }
+
+  // Hàm hiện Dialog thêm công việc
+  void _showAddDialog() {
+    final textController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Công việc mới'),
+        content: TextField(
+          controller: textController,
+          decoration: const InputDecoration(hintText: 'Nhập tên công việc...'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (textController.text.isNotEmpty) {
+                _processAddTodo(textController.text);
+                Navigator.of(ctx).pop();
+              }
+            },
+            child: const Text('Thêm'),
+          )
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Todo REST API'),
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.white,
+        actions: [
+            IconButton(icon: const Icon(Icons.refresh), onPressed: _loadTodos),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddDialog,
+        child: const Icon(Icons.add),
+      ),
+      body: Builder(
+        builder: (context) {
+          if (_isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (_error != null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                   const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                   const SizedBox(height: 16),
+                   Text('Lỗi: $_error'),
+                   ElevatedButton(onPressed: _loadTodos, child: const Text('Thử lại')),
+                ],
+              ),
+            );
+          }
+          if (_todos.isEmpty) {
+            return const Center(child: Text('Chưa có công việc nào'));
+          }
+          
+          return RefreshIndicator(
+            onRefresh: _loadTodos,
+            child: ListView.builder(
+              itemCount: _todos.length,
+              itemBuilder: (context, index) {
+                final todo = _todos[index];
+                return Dismissible(
+                  key: ValueKey(todo.id),
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    child: const Icon(Icons.delete, color: Colors.white),
+                  ),
+                  direction: DismissDirection.endToStart,
+                  onDismissed: (_) => _processDeleteTodo(todo.id),
+                  child: ListTile(
+                    leading: Checkbox(
+                      value: todo.completed,
+                      onChanged: (_) => _processToggle(todo),
+                    ),
+                    title: Text(
+                      todo.title,
+                      style: TextStyle(
+                        decoration: todo.completed 
+                           ? TextDecoration.lineThrough 
+                           : null,
+                        color: todo.completed ? Colors.grey : Colors.black,
+                      ),
+                    ),
+                    subtitle: Text('ID: ${todo.id}'),
+                  ),
+                );
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+```
+
+---
+
+## 12.5. **Phân tích kỹ thuật các điểm "đắt giá" trong code trên**
+
+1.  **Optimistic UI Update (Cập nhật lạc quan):**
+    *   Trong hàm `_processToggle` và `_processDeleteTodo`, ta cập nhật UI (`setState`) **trước khi** gọi API.
+    *   **Tại sao?** Giúp app phản hồi *ngay lập tức*, tạo cảm giác mượt mà (zero latency) cho người dùng.
+    *   **Nếu API lỗi?** Ta có cơ chế `try...catch` để hoàn tác (revert) lại dữ liệu cũ và báo lỗi. Đây là kỹ thuật UX chuyên nghiệp.
+
+2.  **Tách biệt logic (Separation of Concerns):**
+    *   `TodoService` không biết gì về UI (không có `context`, không `SnackBar`).
+    *   `TodoScreen` chỉ gọi hàm từ Service và xử lý kết quả để hiển thị.
+
+3.  **Xử lý State linh hoạt:**
+    *   Dùng biến `_isLoading` và `_error` để kiểm soát các trạng thái màn hình khác nhau.
+    *   Dùng `mounted` check trước khi `setState` trong hàm async để tránh lỗi `setState() called after dispose()`.
+
+4.  **Dismissible Widget:**
+    *   Sử dụng Widget có sẵn của Flutter để làm tính năng "Vuốt để xóa" rất mượt mà.
+
+Chúc mừng! Bạn đã hoàn thành một module "xương sống" của hầu hết các ứng dụng Mobile: Tương tác với REST API.
+
+---
+
+# 13. Mini Test cuối chương
 
 **Câu 1:** http.get trả về gì?  
 → `Future<Response>` - Phải dùng await để lấy Response object.

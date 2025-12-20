@@ -34,10 +34,88 @@ Dùng để lưu dữ liệu **nhỏ**:
 
 - bool  
 - int  
+- double
 - String  
 - List<String>  
 
 Không dùng để lưu dữ liệu lớn.
+
+---
+
+### 🧠 Giảng giải chi tiết: SharedPreferences là gì?
+
+**SharedPreferences là gì?**
+
+- Cơ chế lưu trữ **key-value** đơn giản
+- Dữ liệu được lưu **persistent** (tồn tại sau khi đóng app)
+- Chỉ lưu được các kiểu dữ liệu cơ bản
+- Tự động đồng bộ giữa các lần mở app
+
+**Cơ chế hoạt động:**
+
+```
+SharedPreferences.getInstance()
+    ↓
+Lấy instance (singleton)
+    ↓
+Lưu dữ liệu: prefs.setString("key", "value")
+    ↓
+Dữ liệu được ghi vào storage
+    ↓
+Lần sau mở app: prefs.getString("key") → "value"
+```
+
+**Ví dụ minh họa từng bước:**
+
+```dart
+// BƯỚC 1: Lấy instance (chỉ cần 1 lần)
+final prefs = await SharedPreferences.getInstance();
+// ↑ Instance này có thể dùng lại nhiều lần
+
+// BƯỚC 2: Lưu dữ liệu
+await prefs.setString("username", "John");
+// ↑ Key: "username", Value: "John"
+// ↑ await: Đợi ghi xong mới tiếp tục
+
+// BƯỚC 3: Lấy dữ liệu
+final username = prefs.getString("username");
+// ↑ Trả về "John" hoặc null nếu chưa có
+
+// BƯỚC 4: Xóa dữ liệu
+await prefs.remove("username");
+// hoặc
+await prefs.clear();  // Xóa tất cả
+```
+
+**Các kiểu dữ liệu có thể lưu:**
+
+```dart
+// String
+await prefs.setString("name", "John");
+String? name = prefs.getString("name");
+
+// int
+await prefs.setInt("age", 25);
+int? age = prefs.getInt("age");
+
+// double
+await prefs.setDouble("height", 1.75);
+double? height = prefs.getDouble("height");
+
+// bool
+await prefs.setBool("isDarkMode", true);
+bool? isDark = prefs.getBool("isDarkMode");
+
+// List<String>
+await prefs.setStringList("favorites", ["A", "B", "C"]);
+List<String>? favorites = prefs.getStringList("favorites");
+```
+
+**Lưu ý quan trọng:**
+
+- Tất cả thao tác đều là **async** (phải dùng await)
+- Giá trị trả về có thể **null** nếu key chưa tồn tại
+- Dùng `??` để set giá trị mặc định
 
 ---
 
@@ -48,12 +126,16 @@ Trong pubspec.yaml:
 ```yaml
 dependencies:
   shared_preferences: ^2.2.2
+  path_provider: ^2.1.1  # Cho file storage
 ```
 
 Import:
 
 ```dart
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'dart:convert';
 ```
 
 ---
@@ -71,6 +153,57 @@ Future<void> saveName(String name) async {
 
 ---
 
+### 🧠 Giảng giải chi tiết: Lưu dữ liệu với SharedPreferences
+
+**Ví dụ minh họa từng bước:**
+
+```dart
+// ✅ ĐÚNG: Lưu dữ liệu đầy đủ
+Future<void> saveUserData({
+  required String name,
+  required int age,
+  required bool isDarkMode,
+}) async {
+  // BƯỚC 1: Lấy instance
+  final prefs = await SharedPreferences.getInstance();
+  
+  // BƯỚC 2: Lưu từng giá trị
+  await prefs.setString("username", name);
+  await prefs.setInt("age", age);
+  await prefs.setBool("isDarkMode", isDarkMode);
+  
+  // ✅ QUAN TRỌNG: Phải await để đảm bảo ghi xong
+  print("Đã lưu dữ liệu!");
+}
+
+// ❌ SAI: Quên await
+Future<void> saveNameWrong(String name) async {
+  final prefs = await SharedPreferences.getInstance();
+  prefs.setString("username", name);  // ← Quên await!
+  // Dữ liệu có thể chưa được ghi khi hàm kết thúc
+}
+```
+
+**Flow minh họa:**
+
+```
+User nhấn nút "Lưu"
+    ↓
+saveName("John") được gọi
+    ↓
+SharedPreferences.getInstance() → Lấy instance
+    ↓
+prefs.setString("username", "John") → Ghi vào storage
+    ↓
+await → Đợi ghi xong
+    ↓
+Dữ liệu đã được lưu persistent
+    ↓
+Lần sau mở app: prefs.getString("username") → "John" ✅
+```
+
+---
+
 # 4. **Lấy dữ liệu**
 
 ```dart
@@ -79,6 +212,42 @@ Future<String?> getName() async {
   return prefs.getString("username");
 }
 ```
+
+---
+
+### 🧠 Giảng giải chi tiết: Lấy dữ liệu với SharedPreferences
+
+**Ví dụ minh họa từng bước:**
+
+```dart
+// ✅ ĐÚNG: Lấy dữ liệu với giá trị mặc định
+Future<String> getUserName() async {
+  final prefs = await SharedPreferences.getInstance();
+  // Dùng ?? để set giá trị mặc định nếu null
+  return prefs.getString("username") ?? "Guest";
+}
+
+// ✅ ĐÚNG: Kiểm tra null
+Future<void> loadUserData() async {
+  final prefs = await SharedPreferences.getInstance();
+  
+  final username = prefs.getString("username");
+  if (username != null) {
+    print("Username: $username");
+  } else {
+    print("Chưa có username");
+  }
+  
+  final age = prefs.getInt("age") ?? 0;  // Mặc định = 0
+  final isDark = prefs.getBool("isDarkMode") ?? false;  // Mặc định = false
+}
+```
+
+**Lưu ý quan trọng:**
+
+- Giá trị trả về có thể **null** nếu key chưa tồn tại
+- Luôn dùng `??` để set giá trị mặc định
+- Kiểm tra null trước khi dùng
 
 ---
 
@@ -92,6 +261,42 @@ Lấy lại:
 
 ```dart
 prefs.getStringList("favs");
+```
+
+---
+
+### 🧠 Giảng giải chi tiết: Lưu List với SharedPreferences
+
+**Ví dụ minh họa:**
+
+```dart
+// ✅ ĐÚNG: Lưu danh sách
+Future<void> saveFavorites(List<String> favorites) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setStringList("favorites", favorites);
+}
+
+// ✅ ĐÚNG: Lấy danh sách với giá trị mặc định
+Future<List<String>> getFavorites() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getStringList("favorites") ?? [];  // Mặc định = []
+}
+
+// ✅ ĐÚNG: Thêm item vào danh sách
+Future<void> addFavorite(String item) async {
+  final prefs = await SharedPreferences.getInstance();
+  final favorites = prefs.getStringList("favorites") ?? [];
+  favorites.add(item);
+  await prefs.setStringList("favorites", favorites);
+}
+
+// ✅ ĐÚNG: Xóa item khỏi danh sách
+Future<void> removeFavorite(String item) async {
+  final prefs = await SharedPreferences.getInstance();
+  final favorites = prefs.getStringList("favorites") ?? [];
+  favorites.remove(item);
+  await prefs.setStringList("favorites", favorites);
+}
 ```
 
 ---
@@ -140,6 +345,47 @@ Thư viện dùng:
 
 ---
 
+### 🧠 Giảng giải chi tiết: File Storage là gì?
+
+**File Storage là gì?**
+
+- Lưu dữ liệu dưới dạng **file** trong hệ thống
+- Phù hợp cho dữ liệu **lớn hơn** SharedPreferences
+- Có thể lưu JSON, text, binary data
+- Cần dùng `path_provider` để lấy đường dẫn thư mục
+
+**Cơ chế hoạt động:**
+
+```
+getApplicationDocumentsDirectory()
+    ↓
+Lấy thư mục lưu file của app
+    ↓
+Tạo File object với đường dẫn
+    ↓
+Ghi/đọc file: file.writeAsString() / file.readAsString()
+    ↓
+Dữ liệu được lưu persistent
+```
+
+**Các loại thư mục:**
+
+```dart
+// Thư mục documents (khuyến nghị)
+final dir = await getApplicationDocumentsDirectory();
+// Path: /data/user/0/com.example.app/files
+
+// Thư mục temporary (sẽ bị xóa)
+final tempDir = await getTemporaryDirectory();
+// Path: /data/user/0/com.example.app/cache
+
+// Thư mục external storage (Android)
+final externalDir = await getExternalStorageDirectory();
+// Path: /storage/emulated/0/Android/data/com.example.app/files
+```
+
+---
+
 ## Lấy thư mục lưu file (application directory)
 
 ```dart
@@ -149,6 +395,41 @@ import 'package:path_provider/path_provider.dart';
 Future<String> getFilePath() async {
   final dir = await getApplicationDocumentsDirectory();
   return "${dir.path}/notes.json";
+}
+```
+
+---
+
+### 🧠 Giảng giải chi tiết: path_provider
+
+**path_provider là gì?**
+
+- Package cung cấp đường dẫn thư mục của app
+- Tự động xử lý khác biệt giữa Android/iOS
+- Đảm bảo thư mục tồn tại và có quyền truy cập
+
+**Ví dụ minh họa:**
+
+```dart
+// ✅ ĐÚNG: Lấy thư mục documents
+Future<String> getNotesPath() async {
+  final dir = await getApplicationDocumentsDirectory();
+  // dir.path = "/data/user/0/com.example.app/files"
+  return "${dir.path}/notes.json";
+  // Return: "/data/user/0/com.example.app/files/notes.json"
+}
+
+// ✅ ĐÚNG: Tạo thư mục con nếu cần
+Future<String> getDataPath(String filename) async {
+  final dir = await getApplicationDocumentsDirectory();
+  final dataDir = Directory("${dir.path}/data");
+  
+  // Tạo thư mục nếu chưa có
+  if (!await dataDir.exists()) {
+    await dataDir.create(recursive: true);
+  }
+  
+  return "${dataDir.path}/$filename";
 }
 ```
 
@@ -166,6 +447,57 @@ Future<void> writeFile(String content) async {
 
 ---
 
+### 🧠 Giảng giải chi tiết: Ghi file
+
+**Ví dụ minh họa từng bước:**
+
+```dart
+// ✅ ĐÚNG: Ghi file đầy đủ
+Future<void> writeFile(String content) async {
+  // BƯỚC 1: Lấy đường dẫn
+  final path = await getFilePath();
+  
+  // BƯỚC 2: Tạo File object
+  final file = File(path);
+  
+  // BƯỚC 3: Ghi nội dung
+  await file.writeAsString(content);
+  // ↑ await: Đợi ghi xong
+}
+
+// ✅ ĐÚNG: Ghi file với error handling
+Future<bool> writeFileSafe(String content) async {
+  try {
+    final path = await getFilePath();
+    final file = File(path);
+    await file.writeAsString(content);
+    return true;  // Thành công
+  } catch (e) {
+    print("Lỗi ghi file: $e");
+    return false;  // Thất bại
+  }
+}
+
+// ✅ ĐÚNG: Ghi file với mode append
+Future<void> appendToFile(String content) async {
+  final path = await getFilePath();
+  final file = File(path);
+  await file.writeAsString(
+    content,
+    mode: FileMode.append,  // Thêm vào cuối file
+  );
+}
+```
+
+**Các mode ghi file:**
+
+- `FileMode.write` - Ghi đè (mặc định)
+- `FileMode.append` - Thêm vào cuối
+- `FileMode.read` - Chỉ đọc
+- `FileMode.writeOnly` - Chỉ ghi
+
+---
+
 ## Đọc file:
 
 ```dart
@@ -173,6 +505,60 @@ Future<String> readFile() async {
   final path = await getFilePath();
   final file = File(path);
   return await file.readAsString();
+}
+```
+
+---
+
+### 🧠 Giảng giải chi tiết: Đọc file
+
+**Ví dụ minh họa từng bước:**
+
+```dart
+// ✅ ĐÚNG: Đọc file đầy đủ
+Future<String> readFile() async {
+  // BƯỚC 1: Lấy đường dẫn
+  final path = await getFilePath();
+  
+  // BƯỚC 2: Tạo File object
+  final file = File(path);
+  
+  // BƯỚC 3: Kiểm tra file tồn tại
+  if (await file.exists()) {
+    // BƯỚC 4: Đọc nội dung
+    return await file.readAsString();
+  } else {
+    return "";  // File chưa tồn tại
+  }
+}
+
+// ✅ ĐÚNG: Đọc file với error handling
+Future<String?> readFileSafe() async {
+  try {
+    final path = await getFilePath();
+    final file = File(path);
+    
+    if (await file.exists()) {
+      return await file.readAsString();
+    } else {
+      return null;  // File chưa tồn tại
+    }
+  } catch (e) {
+    print("Lỗi đọc file: $e");
+    return null;
+  }
+}
+
+// ✅ ĐÚNG: Đọc file theo dòng
+Future<List<String>> readFileLines() async {
+  final path = await getFilePath();
+  final file = File(path);
+  
+  if (await file.exists()) {
+    return await file.readAsLines();  // Trả về List<String>
+  } else {
+    return [];
+  }
 }
 ```
 
@@ -204,6 +590,140 @@ final data = jsonDecode(jsonStr);
 
 ---
 
+### 🧠 Giảng giải chi tiết: Lưu JSON vào file
+
+**Tại sao cần lưu JSON?**
+
+- JSON là format phổ biến để trao đổi dữ liệu
+- Dễ parse, dễ đọc
+- Có thể lưu object phức tạp
+
+**Ví dụ minh họa từng bước:**
+
+```dart
+// BƯỚC 1: Chuẩn bị dữ liệu
+List<Map<String, dynamic>> notes = [
+  {"id": 1, "title": "Học Flutter", "done": false},
+  {"id": 2, "title": "Mua trà sữa", "done": true},
+];
+
+// BƯỚC 2: Convert sang JSON string
+String jsonString = jsonEncode(notes);
+// jsonString = '[{"id":1,"title":"Học Flutter","done":false},...]'
+
+// BƯỚC 3: Ghi vào file
+await writeFile(jsonString);
+
+// BƯỚC 4: Đọc từ file
+String jsonStr = await readFile();
+
+// BƯỚC 5: Parse JSON string → Dart object
+List<dynamic> data = jsonDecode(jsonStr);
+List<Map<String, dynamic>> notes = data.cast<Map<String, dynamic>>();
+```
+
+**Ví dụ minh họa: Lưu object phức tạp**
+
+```dart
+// Model
+class Note {
+  final int id;
+  final String title;
+  final bool done;
+  
+  Note({required this.id, required this.title, required this.done});
+  
+  Map<String, dynamic> toJson() {
+    return {
+      "id": id,
+      "title": title,
+      "done": done,
+    };
+  }
+  
+  factory Note.fromJson(Map<String, dynamic> json) {
+    return Note(
+      id: json["id"] as int,
+      title: json["title"] as String,
+      done: json["done"] as bool,
+    );
+  }
+}
+
+// Lưu danh sách Note
+Future<void> saveNotes(List<Note> notes) async {
+  // Convert List<Note> → List<Map>
+  final jsonList = notes.map((note) => note.toJson()).toList();
+  
+  // Convert List<Map> → JSON string
+  final jsonString = jsonEncode(jsonList);
+  
+  // Ghi vào file
+  final path = await getFilePath();
+  final file = File(path);
+  await file.writeAsString(jsonString);
+}
+
+// Đọc danh sách Note
+Future<List<Note>> loadNotes() async {
+  try {
+    final path = await getFilePath();
+    final file = File(path);
+    
+    if (!await file.exists()) {
+      return [];  // File chưa tồn tại
+    }
+    
+    // Đọc JSON string
+    final jsonString = await file.readAsString();
+    
+    // Parse JSON string → List<dynamic>
+    final jsonList = jsonDecode(jsonString) as List<dynamic>;
+    
+    // Convert List<dynamic> → List<Note>
+    return jsonList
+      .map((json) => Note.fromJson(json as Map<String, dynamic>))
+      .toList();
+  } catch (e) {
+    print("Lỗi đọc notes: $e");
+    return [];
+  }
+}
+```
+
+**Ví dụ minh họa: Lưu object đơn**
+
+```dart
+// Lưu User object
+Future<void> saveUser(User user) async {
+  final jsonString = jsonEncode(user.toJson());
+  final path = await getUserPath();
+  final file = File(path);
+  await file.writeAsString(jsonString);
+}
+
+// Đọc User object
+Future<User?> loadUser() async {
+  try {
+    final path = await getUserPath();
+    final file = File(path);
+    
+    if (!await file.exists()) {
+      return null;
+    }
+    
+    final jsonString = await file.readAsString();
+    final json = jsonDecode(jsonString) as Map<String, dynamic>;
+    return User.fromJson(json);
+  } catch (e) {
+    print("Lỗi đọc user: $e");
+    return null;
+  }
+}
+```
+
+---
+
 # 9. **Khi nào dùng SharedPreferences? Khi nào dùng file?**
 
 | Trường hợp | Nên dùng |
@@ -226,6 +746,39 @@ final data = jsonDecode(jsonStr);
 prefs.setString("key", value); // Không await!
 ```
 
+---
+
+### 🔍 Giảng giải chi tiết: Tại sao quên await gây lỗi?
+
+**Ví dụ minh họa lỗi:**
+
+```dart
+// ❌ SAI: Quên await
+Future<void> saveName(String name) async {
+  final prefs = await SharedPreferences.getInstance();
+  prefs.setString("username", name);  // ← Quên await!
+  print("Đã lưu!");  // ← In ra ngay, nhưng dữ liệu có thể chưa ghi xong!
+}
+
+// Vấn đề:
+// - setString() trả về Future<bool>
+// - Không có await → không đợi ghi xong
+// - App có thể đóng trước khi ghi xong → mất dữ liệu
+```
+
+**✅ Giải pháp:**
+
+```dart
+// ✅ ĐÚNG: Có await
+Future<void> saveName(String name) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString("username", name);  // ← Có await!
+  print("Đã lưu!");  // ← Chỉ in ra sau khi ghi xong
+}
+```
+
+---
+
 ## ✔ Đúng:
 
 ```dart
@@ -236,9 +789,68 @@ await prefs.setString("key", value);
 
 ## ❌ Sai: lưu object vào SharedPreferences
 
+```dart
+// ❌ SAI: Lưu object trực tiếp
+prefs.setString("user", userObject);  // ← Lỗi! userObject không phải String
 ```
-prefs.setString("user", userObject); // sai
+
+---
+
+### 🔍 Giảng giải chi tiết: Tại sao không lưu object trực tiếp?
+
+**Ví dụ minh họa lỗi:**
+
+```dart
+class User {
+  final String name;
+  final int age;
+  User({required this.name, required this.age});
+}
+
+// ❌ SAI: Lưu object trực tiếp
+Future<void> saveUserWrong(User user) async {
+  final prefs = await SharedPreferences.getInstance();
+  prefs.setString("user", user);  // ← Lỗi compile! User không phải String
+}
+
+// ❌ SAI: Lưu object bằng toString()
+Future<void> saveUserWrong2(User user) async {
+  final prefs = await SharedPreferences.getInstance();
+  prefs.setString("user", user.toString());  // ← Lưu được nhưng không parse lại được!
+}
 ```
+
+**✅ Giải pháp:**
+
+```dart
+// ✅ ĐÚNG: Convert sang JSON trước
+Future<void> saveUser(User user) async {
+  final prefs = await SharedPreferences.getInstance();
+  // Convert User → Map → JSON string
+  final jsonString = jsonEncode({
+    "name": user.name,
+    "age": user.age,
+  });
+  await prefs.setString("user", jsonString);
+}
+
+// ✅ ĐÚNG: Đọc lại
+Future<User?> loadUser() async {
+  final prefs = await SharedPreferences.getInstance();
+  final jsonString = prefs.getString("user");
+  
+  if (jsonString == null) return null;
+  
+  // Parse JSON string → Map → User
+  final json = jsonDecode(jsonString) as Map<String, dynamic>;
+  return User(
+    name: json["name"] as String,
+    age: json["age"] as int,
+  );
+}
+```
+
+---
 
 ## ✔ Đúng:
 
@@ -251,6 +863,58 @@ prefs.setString("user", jsonEncode(userObject));
 ## ❌ Sai: viết file trong build()  
 → build chạy liên tục → app lag
 
+---
+
+### 🔍 Giảng giải chi tiết: Tại sao không viết file trong build()?
+
+**Ví dụ minh họa lỗi:**
+
+```dart
+class NoteScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // ❌ SAI: Ghi file trong build()
+    writeFile("some content");  // ← build() chạy nhiều lần → ghi file nhiều lần!
+    
+    return Scaffold(...);
+  }
+}
+
+// Vấn đề:
+// - build() chạy mỗi khi widget rebuild
+// - Ghi file trong build() → ghi file nhiều lần không cần thiết
+// - App lag, performance kém
+```
+
+**✅ Giải pháp:**
+
+```dart
+// ✅ ĐÚNG: Ghi file trong method riêng
+class NoteScreen extends StatefulWidget {
+  @override
+  State<NoteScreen> createState() => _NoteScreenState();
+}
+
+class _NoteScreenState extends State<NoteScreen> {
+  Future<void> saveNotes() async {
+    // Ghi file ở đây, gọi từ button hoặc initState
+    await writeFile("content");
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: ElevatedButton(
+        onPressed: saveNotes,  // ← Gọi từ button
+        child: Text("Lưu"),
+      ),
+    );
+  }
+}
+```
+
+---
+
 ## ✔ Đúng: viết file trong hàm riêng, gọi từ button hoặc initState
 
 ---
@@ -260,96 +924,816 @@ prefs.setString("user", jsonEncode(userObject));
 
 ---
 
-# 11. **Ví dụ hoàn chỉnh: Mini App ghi chú offline**
+### 🔍 Giảng giải chi tiết: Lỗi quên import
 
-```
-lib/
-  services/
-    local_service.dart
-```
-
-### local_service.dart
+**Ví dụ minh họa lỗi:**
 
 ```dart
-class LocalNoteService {
-  Future<String> _path() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return "${dir.path}/notes.json";
-  }
+// ❌ SAI: Quên import
+// import 'package:path_provider/path_provider.dart';  // ← Quên!
 
-  Future<List<dynamic>> loadNotes() async {
-    try {
-      final file = File(await _path());
-      final content = await file.readAsString();
-      return jsonDecode(content);
-    } catch (e) {
-      return [];
-    }
-  }
-
-  Future<void> saveNotes(List<dynamic> notes) async {
-    final file = File(await _path());
-    await file.writeAsString(jsonEncode(notes));
-  }
+Future<String> getFilePath() async {
+  final dir = await getApplicationDocumentsDirectory();  // ← Lỗi! Không tìm thấy function
+  return "${dir.path}/notes.json";
 }
 ```
 
-### UI đơn giản
+**✅ Giải pháp:**
 
 ```dart
-class NoteApp extends StatefulWidget {
-  const NoteApp({super.key});
+// ✅ ĐÚNG: Có import đầy đủ
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'dart:convert';
 
-  @override
-  State<NoteApp> createState() => _NoteAppState();
+Future<String> getFilePath() async {
+  final dir = await getApplicationDocumentsDirectory();  // ← OK!
+  return "${dir.path}/notes.json";
 }
+```
 
-class _NoteAppState extends State<NoteApp> {
-  final service = LocalNoteService();
-  List<dynamic> notes = [];
-  final ctrl = TextEditingController();
+---
 
-  @override
-  void initState() {
-    super.initState();
-    service.loadNotes().then((value) {
-      setState(() => notes = value);
-    });
-  }
+## 🔴 Case Study: Các lỗi khác thường gặp
 
-  void addNote() async {
-    notes.add({"text": ctrl.text, "done": false});
-    await service.saveNotes(notes);
-    setState(() {});
-    ctrl.clear();
-  }
+### Case Study 1: Quên kiểm tra null khi đọc
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Ghi chú offline")),
-      body: Column(
-        children: [
-          TextField(controller: ctrl),
-          ElevatedButton(onPressed: addNote, child: const Text("Thêm")),
-          Expanded(
-            child: ListView.builder(
-              itemCount: notes.length,
-              itemBuilder: (_, i) => ListTile(
-                title: Text(notes[i]["text"]),
-              ),
-            ),
-          )
-        ],
-      ),
-    );
+#### ❌ Vấn đề:
+
+```dart
+Future<void> loadUser() async {
+  final prefs = await SharedPreferences.getInstance();
+  final username = prefs.getString("username");
+  print(username.length);  // ← Crash nếu username = null!
+}
+```
+
+#### ✅ Giải pháp:
+
+```dart
+Future<void> loadUser() async {
+  final prefs = await SharedPreferences.getInstance();
+  final username = prefs.getString("username") ?? "Guest";  // ← Giá trị mặc định
+  print(username.length);  // ← An toàn
+}
+```
+
+---
+
+### Case Study 2: Quên kiểm tra file tồn tại
+
+#### ❌ Vấn đề:
+
+```dart
+Future<String> readFile() async {
+  final path = await getFilePath();
+  final file = File(path);
+  return await file.readAsString();  // ← Crash nếu file chưa tồn tại!
+}
+```
+
+#### ✅ Giải pháp:
+
+```dart
+Future<String> readFile() async {
+  final path = await getFilePath();
+  final file = File(path);
+  
+  if (await file.exists()) {
+    return await file.readAsString();
+  } else {
+    return "";  // ← Trả về giá trị mặc định
   }
 }
 ```
 
 ---
 
-# 12. Bài tập thực hành
+### Case Study 3: Ghi file không có error handling
+
+#### ❌ Vấn đề:
+
+```dart
+Future<void> saveData(String data) async {
+  final file = File(await getFilePath());
+  await file.writeAsString(data);  // ← Crash nếu không có quyền ghi!
+}
+```
+
+#### ✅ Giải pháp:
+
+```dart
+Future<bool> saveData(String data) async {
+  try {
+    final file = File(await getFilePath());
+    await file.writeAsString(data);
+    return true;  // Thành công
+  } catch (e) {
+    print("Lỗi ghi file: $e");
+    return false;  // Thất bại
+  }
+}
+```
+
+---
+
+### Case Study 4: Lưu dữ liệu lớn vào SharedPreferences
+
+#### ❌ Vấn đề:
+
+```dart
+// ❌ SAI: Lưu danh sách lớn vào SharedPreferences
+Future<void> saveLargeList(List<String> items) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setStringList("items", items);  // ← items có 10000 phần tử!
+  // SharedPreferences không phù hợp cho dữ liệu lớn
+}
+```
+
+#### ✅ Giải pháp:
+
+```dart
+// ✅ ĐÚNG: Lưu vào file
+Future<void> saveLargeList(List<String> items) async {
+  final jsonString = jsonEncode(items);
+  final file = File(await getFilePath());
+  await file.writeAsString(jsonString);  // ← File phù hợp hơn
+}
+```
+
+---
+
+# 11. **Các ví dụ thực tế đa dạng**
+
+## 11.1. **Ví dụ: Lưu token đăng nhập với SharedPreferences**
+
+```dart
+// services/auth_storage.dart
+class AuthStorage {
+  static const String _tokenKey = "auth_token";
+  static const String _userIdKey = "user_id";
+  
+  // Lưu token
+  static Future<void> saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, token);
+  }
+  
+  // Lấy token
+  static Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_tokenKey);
+  }
+  
+  // Xóa token (logout)
+  static Future<void> clearToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_userIdKey);
+  }
+  
+  // Kiểm tra đã đăng nhập
+  static Future<bool> isLoggedIn() async {
+    final token = await getToken();
+    return token != null && token.isNotEmpty;
+  }
+}
+
+// Sử dụng:
+// await AuthStorage.saveToken("abc123");
+// final token = await AuthStorage.getToken();
+// await AuthStorage.clearToken();
+```
+
+---
+
+## 11.2. **Ví dụ: Lưu cài đặt người dùng**
+
+```dart
+// services/settings_storage.dart
+class SettingsStorage {
+  // Theme
+  static Future<void> saveTheme(bool isDark) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool("is_dark_mode", isDark);
+  }
+  
+  static Future<bool> getTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool("is_dark_mode") ?? false;
+  }
+  
+  // Language
+  static Future<void> saveLanguage(String language) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString("language", language);
+  }
+  
+  static Future<String> getLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString("language") ?? "vi";
+  }
+  
+  // Notifications
+  static Future<void> saveNotificationsEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool("notifications_enabled", enabled);
+  }
+  
+  static Future<bool> getNotificationsEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool("notifications_enabled") ?? true;
+  }
+}
+```
+
+---
+
+## 11.3. **Ví dụ: Lưu danh sách yêu thích**
+
+```dart
+// services/favorite_storage.dart
+class FavoriteStorage {
+  static const String _favoritesKey = "favorites";
+  
+  // Lấy danh sách yêu thích
+  static Future<List<String>> getFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_favoritesKey) ?? [];
+  }
+  
+  // Thêm vào yêu thích
+  static Future<bool> addFavorite(String itemId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final favorites = await getFavorites();
+    
+    if (favorites.contains(itemId)) {
+      return false;  // Đã có rồi
+    }
+    
+    favorites.add(itemId);
+    return await prefs.setStringList(_favoritesKey, favorites);
+  }
+  
+  // Xóa khỏi yêu thích
+  static Future<bool> removeFavorite(String itemId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final favorites = await getFavorites();
+    favorites.remove(itemId);
+    return await prefs.setStringList(_favoritesKey, favorites);
+  }
+  
+  // Kiểm tra có trong yêu thích
+  static Future<bool> isFavorite(String itemId) async {
+    final favorites = await getFavorites();
+    return favorites.contains(itemId);
+  }
+}
+```
+
+---
+
+## 11.4. **Ví dụ hoàn chỉnh: Mini App ghi chú offline**
+
+```
+lib/
+  models/
+    note.dart
+  services/
+    note_storage.dart
+  screens/
+    note_screen.dart
+```
+
+### models/note.dart
+
+```dart
+class Note {
+  final String id;
+  final String title;
+  final String content;
+  final DateTime createdAt;
+  final bool isCompleted;
+  
+  Note({
+    required this.id,
+    required this.title,
+    required this.content,
+    required this.createdAt,
+    this.isCompleted = false,
+  });
+  
+  Map<String, dynamic> toJson() {
+    return {
+      "id": id,
+      "title": title,
+      "content": content,
+      "createdAt": createdAt.toIso8601String(),
+      "isCompleted": isCompleted,
+    };
+  }
+  
+  factory Note.fromJson(Map<String, dynamic> json) {
+    return Note(
+      id: json["id"] as String,
+      title: json["title"] as String,
+      content: json["content"] as String,
+      createdAt: DateTime.parse(json["createdAt"] as String),
+      isCompleted: json["isCompleted"] as bool? ?? false,
+    );
+  }
+}
+```
+
+### services/note_storage.dart
+
+```dart
+import 'dart:io';
+import 'dart:convert';
+import 'package:path_provider/path_provider.dart';
+import '../models/note.dart';
+
+class NoteStorage {
+  Future<String> _getFilePath() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return "${dir.path}/notes.json";
+  }
+  
+  // Load notes từ file
+  Future<List<Note>> loadNotes() async {
+    try {
+      final file = File(await _getFilePath());
+      
+      if (!await file.exists()) {
+        return [];  // File chưa tồn tại
+      }
+      
+      final jsonString = await file.readAsString();
+      final jsonList = jsonDecode(jsonString) as List<dynamic>;
+      
+      return jsonList
+        .map((json) => Note.fromJson(json as Map<String, dynamic>))
+        .toList();
+    } catch (e) {
+      print("Lỗi load notes: $e");
+      return [];
+    }
+  }
+  
+  // Save notes vào file
+  Future<bool> saveNotes(List<Note> notes) async {
+    try {
+      final jsonList = notes.map((note) => note.toJson()).toList();
+      final jsonString = jsonEncode(jsonList);
+      
+      final file = File(await _getFilePath());
+      await file.writeAsString(jsonString);
+      
+      return true;
+    } catch (e) {
+      print("Lỗi save notes: $e");
+      return false;
+    }
+  }
+  
+  // Thêm note mới
+  Future<bool> addNote(Note note) async {
+    final notes = await loadNotes();
+    notes.add(note);
+    return await saveNotes(notes);
+  }
+  
+  // Xóa note
+  Future<bool> deleteNote(String noteId) async {
+    final notes = await loadNotes();
+    notes.removeWhere((note) => note.id == noteId);
+    return await saveNotes(notes);
+  }
+  
+  // Cập nhật note
+  Future<bool> updateNote(Note updatedNote) async {
+    final notes = await loadNotes();
+    final index = notes.indexWhere((note) => note.id == updatedNote.id);
+    
+    if (index != -1) {
+      notes[index] = updatedNote;
+      return await saveNotes(notes);
+    }
+    
+    return false;
+  }
+}
+```
+
+### screens/note_screen.dart
+
+```dart
+import 'package:flutter/material.dart';
+import '../models/note.dart';
+import '../services/note_storage.dart';
+
+class NoteScreen extends StatefulWidget {
+  const NoteScreen({super.key});
+
+  @override
+  State<NoteScreen> createState() => _NoteScreenState();
+}
+
+class _NoteScreenState extends State<NoteScreen> {
+  final NoteStorage _storage = NoteStorage();
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _contentController = TextEditingController();
+  
+  List<Note> _notes = [];
+  bool _isLoading = true;
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadNotes();
+  }
+  
+  Future<void> _loadNotes() async {
+    setState(() => _isLoading = true);
+    final notes = await _storage.loadNotes();
+    setState(() {
+      _notes = notes;
+      _isLoading = false;
+    });
+  }
+  
+  Future<void> _addNote() async {
+    if (_titleController.text.trim().isEmpty) return;
+    
+    final note = Note(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: _titleController.text.trim(),
+      content: _contentController.text.trim(),
+      createdAt: DateTime.now(),
+    );
+    
+    final success = await _storage.addNote(note);
+    if (success) {
+      _titleController.clear();
+      _contentController.clear();
+      _loadNotes();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Đã thêm ghi chú")),
+        );
+      }
+    }
+  }
+  
+  Future<void> _deleteNote(String noteId) async {
+    final success = await _storage.deleteNote(noteId);
+    if (success) {
+      _loadNotes();
+    }
+  }
+  
+  Future<void> _toggleComplete(Note note) async {
+    final updatedNote = Note(
+      id: note.id,
+      title: note.title,
+      content: note.content,
+      createdAt: note.createdAt,
+      isCompleted: !note.isCompleted,
+    );
+    
+    await _storage.updateNote(updatedNote);
+    _loadNotes();
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Ghi chú offline")),
+      body: _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _titleController,
+                      decoration: const InputDecoration(
+                        labelText: "Tiêu đề",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _contentController,
+                      decoration: const InputDecoration(
+                        labelText: "Nội dung",
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: _addNote,
+                      child: const Text("Thêm ghi chú"),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: _notes.isEmpty
+                  ? const Center(child: Text("Chưa có ghi chú nào"))
+                  : ListView.builder(
+                      itemCount: _notes.length,
+                      itemBuilder: (context, index) {
+                        final note = _notes[index];
+                        return ListTile(
+                          leading: Checkbox(
+                            value: note.isCompleted,
+                            onChanged: (_) => _toggleComplete(note),
+                          ),
+                          title: Text(
+                            note.title,
+                            style: TextStyle(
+                              decoration: note.isCompleted
+                                ? TextDecoration.lineThrough
+                                : null,
+                            ),
+                          ),
+                          subtitle: Text(note.content),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _deleteNote(note.id),
+                          ),
+                        );
+                      },
+                    ),
+              ),
+            ],
+          ),
+    );
+  }
+  
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _contentController.dispose();
+    super.dispose();
+  }
+}
+```
+
+---
+
+## 11.5. **Ví dụ: Lưu giỏ hàng tạm thời**
+
+```dart
+// services/cart_storage.dart
+class CartStorage {
+  static const String _cartKey = "cart_items";
+  
+  // Lưu giỏ hàng
+  static Future<bool> saveCart(List<Map<String, dynamic>> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = jsonEncode(items);
+    return await prefs.setString(_cartKey, jsonString);
+  }
+  
+  // Lấy giỏ hàng
+  static Future<List<Map<String, dynamic>>> getCart() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString(_cartKey);
+    
+    if (jsonString == null) {
+      return [];
+    }
+    
+    try {
+      final jsonList = jsonDecode(jsonString) as List<dynamic>;
+      return jsonList.cast<Map<String, dynamic>>();
+    } catch (e) {
+      return [];
+    }
+  }
+  
+  // Xóa giỏ hàng
+  static Future<void> clearCart() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_cartKey);
+  }
+}
+```
+
+---
+
+# 12. **Best Practices & Performance**
+
+## 12.1. **Khi nào dùng SharedPreferences vs File?**
+
+**SharedPreferences - Dùng khi:**
+- Dữ liệu nhỏ (< 1MB)
+- Cài đặt, token, flag
+- Danh sách ngắn (< 100 items)
+- Cần truy cập nhanh
+
+**File Storage - Dùng khi:**
+- Dữ liệu lớn (> 1MB)
+- JSON phức tạp
+- Danh sách dài (> 100 items)
+- Cần lưu nhiều file
+
+**Bảng so sánh:**
+
+| Đặc điểm | SharedPreferences | File Storage |
+|----------|------------------|--------------|
+| **Kích thước** | Nhỏ (< 1MB) | Lớn (không giới hạn) |
+| **Tốc độ** | Rất nhanh | Nhanh |
+| **Dễ dùng** | Rất dễ | Dễ |
+| **Kiểu dữ liệu** | Cơ bản (String, int, bool...) | Bất kỳ (JSON, text, binary) |
+| **Ví dụ** | Token, theme, settings | Notes, logs, cache |
+
+---
+
+## 12.2. **Best Practices**
+
+### 1. Luôn dùng await cho thao tác async
+
+```dart
+// ✅ ĐÚNG
+await prefs.setString("key", "value");
+await file.writeAsString("content");
+
+// ❌ SAI
+prefs.setString("key", "value");  // Quên await
+```
+
+### 2. Luôn kiểm tra null và set giá trị mặc định
+
+```dart
+// ✅ ĐÚNG
+final username = prefs.getString("username") ?? "Guest";
+final notes = await loadNotes() ?? [];
+
+// ❌ SAI
+final username = prefs.getString("username");  // Có thể null
+print(username.length);  // Crash nếu null!
+```
+
+### 3. Xử lý lỗi đầy đủ
+
+```dart
+// ✅ ĐÚNG
+Future<bool> saveData(String data) async {
+  try {
+    final file = File(await getFilePath());
+    await file.writeAsString(data);
+    return true;
+  } catch (e) {
+    print("Lỗi: $e");
+    return false;
+  }
+}
+
+// ❌ SAI
+Future<void> saveData(String data) async {
+  final file = File(await getFilePath());
+  await file.writeAsString(data);  // Crash nếu lỗi!
+}
+```
+
+### 4. Tách logic storage vào Service class
+
+```dart
+// ✅ ĐÚNG: Tách vào Service
+class NoteStorage {
+  Future<List<Note>> loadNotes() async {...}
+  Future<bool> saveNotes(List<Note> notes) async {...}
+}
+
+// ❌ SAI: Logic trong UI
+class NoteScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // Logic storage ở đây → Rối!
+  }
+}
+```
+
+### 5. Cache SharedPreferences instance
+
+```dart
+// ✅ ĐÚNG: Cache instance
+class StorageService {
+  static SharedPreferences? _prefs;
+  
+  static Future<SharedPreferences> getInstance() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    return _prefs!;
+  }
+}
+
+// ❌ SAI: Lấy instance mỗi lần
+Future<void> saveData() async {
+  final prefs = await SharedPreferences.getInstance();  // Chậm!
+  await prefs.setString("key", "value");
+}
+```
+
+### 6. Kiểm tra file tồn tại trước khi đọc
+
+```dart
+// ✅ ĐÚNG
+Future<String> readFile() async {
+  final file = File(await getFilePath());
+  if (await file.exists()) {
+    return await file.readAsString();
+  }
+  return "";
+}
+
+// ❌ SAI
+Future<String> readFile() async {
+  final file = File(await getFilePath());
+  return await file.readAsString();  // Crash nếu file chưa tồn tại!
+}
+```
+
+### 7. Dùng Model class cho JSON
+
+```dart
+// ✅ ĐÚNG: Type-safe
+class Note {
+  final String title;
+  Note({required this.title});
+  Map<String, dynamic> toJson() {...}
+  factory Note.fromJson(Map<String, dynamic> json) {...}
+}
+
+// ❌ SAI: Dùng Map trực tiếp
+final data = jsonDecode(jsonString) as Map;
+print(data["title"]);  // Dễ lỗi nếu key sai
+```
+
+---
+
+## 12.3. **Performance Tips**
+
+### 1. Tránh ghi file quá thường xuyên
+
+```dart
+// ❌ SAI: Ghi file mỗi lần thay đổi
+void updateNote(Note note) {
+  notes[index] = note;
+  saveNotes(notes);  // Ghi file ngay
+}
+
+// ✅ ĐÚNG: Batch save hoặc debounce
+Timer? _saveTimer;
+void updateNote(Note note) {
+  notes[index] = note;
+  
+  // Debounce: Chờ 500ms sau khi ngừng thay đổi
+  _saveTimer?.cancel();
+  _saveTimer = Timer(Duration(milliseconds: 500), () {
+    saveNotes(notes);
+  });
+}
+```
+
+### 2. Dùng background isolate cho file lớn
+
+```dart
+// ✅ ĐÚNG: Xử lý file lớn trong isolate
+Future<void> saveLargeFile(String data) async {
+  await compute(_saveFileInIsolate, data);
+}
+
+static Future<void> _saveFileInIsolate(String data) async {
+  final file = File(await getFilePath());
+  await file.writeAsString(data);
+}
+```
+
+### 3. Compress JSON nếu cần
+
+```dart
+// Nếu JSON quá lớn, có thể compress
+import 'dart:io';
+import 'package:archive/archive.dart';
+
+Future<void> saveCompressedJson(List<Map> data) async {
+  final jsonString = jsonEncode(data);
+  final compressed = GZipEncoder().encode(utf8.encode(jsonString));
+  final file = File(await getFilePath());
+  await file.writeAsBytes(compressed);
+}
+```
+
+---
+
+# 13. Bài tập thực hành
 
 1. Tạo app “Ghi nhớ tên người dùng” bằng SharedPreferences.  
 2. Tạo app lưu trạng thái dark/light vào SharedPreferences.  
@@ -359,7 +1743,7 @@ class _NoteAppState extends State<NoteApp> {
 
 ---
 
-# 13. Mini Test cuối chương
+# 14. Mini Test cuối chương
 
 **Câu 1:** SharedPreferences lưu được loại dữ liệu gì?  
 → int, double, bool, String, List<String>.
@@ -373,18 +1757,38 @@ class _NoteAppState extends State<NoteApp> {
 **Câu 4:** jsonDecode làm gì?  
 → chuyển chuỗi JSON → Map/List.
 
-**Câu 5:** tại sao không gọi writeFile trong build()?  
+**Câu 5:** Tại sao không gọi writeFile trong build()?  
 → build chạy nhiều lần → lag và phản tác dụng.
+
+**Câu 6:** Tại sao cần await khi lưu dữ liệu?  
+→ Đảm bảo dữ liệu được ghi xong trước khi tiếp tục.
+
+**Câu 7:** Khi nào dùng SharedPreferences vs File?  
+→ SharedPreferences cho dữ liệu nhỏ, File cho dữ liệu lớn.
+
+**Câu 8:** Tại sao cần kiểm tra null khi đọc dữ liệu?  
+→ Key có thể chưa tồn tại → trả về null → crash nếu không kiểm tra.
+
+**Câu 9:** path_provider dùng để làm gì?  
+→ Lấy đường dẫn thư mục của app để lưu file.
+
+**Câu 10:** Tại sao nên tách logic storage vào Service class?  
+→ Tách biệt concerns, dễ test, dễ tái sử dụng, dễ maintain.
 
 ---
 
 # 📝 Quick Notes (Ghi nhớ nhanh)
 
-- SharedPreferences = dữ liệu nhỏ, cài đặt.  
-- File storage = dữ liệu lớn hơn, JSON.  
-- Luôn await thao tác ghi dữ liệu.  
-- Không viết file trong build().  
-- Lưu đối tượng (object) phải convert JSON.
+- **SharedPreferences** = dữ liệu nhỏ (< 1MB), cài đặt, token.  
+- **File storage** = dữ liệu lớn hơn, JSON, danh sách dài.  
+- **Luôn await** thao tác ghi dữ liệu (setString, writeAsString).  
+- **Không viết file** trong build() → gây lag.  
+- **Lưu object** phải convert sang JSON (jsonEncode).  
+- **Luôn kiểm tra null** và set giá trị mặc định (??).  
+- **Xử lý lỗi** đầy đủ với try-catch.  
+- **Tách logic** storage vào Service class.  
+- **Kiểm tra file tồn tại** trước khi đọc.  
+- **Dùng Model class** cho JSON (type-safe).
 
 ---
 
