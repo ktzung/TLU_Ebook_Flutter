@@ -1063,474 +1063,9 @@ Future<void> saveLargeList(List<String> items) async {
 
 ---
 
-# 11. **Các ví dụ thực tế đa dạng**
+# 11. **Best Practices & Performance**
 
-## 11.1. **Ví dụ: Lưu token đăng nhập với SharedPreferences**
-
-```dart
-// services/auth_storage.dart
-class AuthStorage {
-  static const String _tokenKey = "auth_token";
-  static const String _userIdKey = "user_id";
-  
-  // Lưu token
-  static Future<void> saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token);
-  }
-  
-  // Lấy token
-  static Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
-  }
-  
-  // Xóa token (logout)
-  static Future<void> clearToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_userIdKey);
-  }
-  
-  // Kiểm tra đã đăng nhập
-  static Future<bool> isLoggedIn() async {
-    final token = await getToken();
-    return token != null && token.isNotEmpty;
-  }
-}
-
-// Sử dụng:
-// await AuthStorage.saveToken("abc123");
-// final token = await AuthStorage.getToken();
-// await AuthStorage.clearToken();
-```
-
----
-
-## 11.2. **Ví dụ: Lưu cài đặt người dùng**
-
-```dart
-// services/settings_storage.dart
-class SettingsStorage {
-  // Theme
-  static Future<void> saveTheme(bool isDark) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool("is_dark_mode", isDark);
-  }
-  
-  static Future<bool> getTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool("is_dark_mode") ?? false;
-  }
-  
-  // Language
-  static Future<void> saveLanguage(String language) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString("language", language);
-  }
-  
-  static Future<String> getLanguage() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString("language") ?? "vi";
-  }
-  
-  // Notifications
-  static Future<void> saveNotificationsEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool("notifications_enabled", enabled);
-  }
-  
-  static Future<bool> getNotificationsEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool("notifications_enabled") ?? true;
-  }
-}
-```
-
----
-
-## 11.3. **Ví dụ: Lưu danh sách yêu thích**
-
-```dart
-// services/favorite_storage.dart
-class FavoriteStorage {
-  static const String _favoritesKey = "favorites";
-  
-  // Lấy danh sách yêu thích
-  static Future<List<String>> getFavorites() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getStringList(_favoritesKey) ?? [];
-  }
-  
-  // Thêm vào yêu thích
-  static Future<bool> addFavorite(String itemId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final favorites = await getFavorites();
-    
-    if (favorites.contains(itemId)) {
-      return false;  // Đã có rồi
-    }
-    
-    favorites.add(itemId);
-    return await prefs.setStringList(_favoritesKey, favorites);
-  }
-  
-  // Xóa khỏi yêu thích
-  static Future<bool> removeFavorite(String itemId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final favorites = await getFavorites();
-    favorites.remove(itemId);
-    return await prefs.setStringList(_favoritesKey, favorites);
-  }
-  
-  // Kiểm tra có trong yêu thích
-  static Future<bool> isFavorite(String itemId) async {
-    final favorites = await getFavorites();
-    return favorites.contains(itemId);
-  }
-}
-```
-
----
-
-## 11.4. **Ví dụ hoàn chỉnh: Mini App ghi chú offline**
-
-```
-lib/
-  models/
-    note.dart
-  services/
-    note_storage.dart
-  screens/
-    note_screen.dart
-```
-
-### models/note.dart
-
-```dart
-class Note {
-  final String id;
-  final String title;
-  final String content;
-  final DateTime createdAt;
-  final bool isCompleted;
-  
-  Note({
-    required this.id,
-    required this.title,
-    required this.content,
-    required this.createdAt,
-    this.isCompleted = false,
-  });
-  
-  Map<String, dynamic> toJson() {
-    return {
-      "id": id,
-      "title": title,
-      "content": content,
-      "createdAt": createdAt.toIso8601String(),
-      "isCompleted": isCompleted,
-    };
-  }
-  
-  factory Note.fromJson(Map<String, dynamic> json) {
-    return Note(
-      id: json["id"] as String,
-      title: json["title"] as String,
-      content: json["content"] as String,
-      createdAt: DateTime.parse(json["createdAt"] as String),
-      isCompleted: json["isCompleted"] as bool? ?? false,
-    );
-  }
-}
-```
-
-### services/note_storage.dart
-
-```dart
-import 'dart:io';
-import 'dart:convert';
-import 'package:path_provider/path_provider.dart';
-import '../models/note.dart';
-
-class NoteStorage {
-  Future<String> _getFilePath() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return "${dir.path}/notes.json";
-  }
-  
-  // Load notes từ file
-  Future<List<Note>> loadNotes() async {
-    try {
-      final file = File(await _getFilePath());
-      
-      if (!await file.exists()) {
-        return [];  // File chưa tồn tại
-      }
-      
-      final jsonString = await file.readAsString();
-      final jsonList = jsonDecode(jsonString) as List<dynamic>;
-      
-      return jsonList
-        .map((json) => Note.fromJson(json as Map<String, dynamic>))
-        .toList();
-    } catch (e) {
-      print("Lỗi load notes: $e");
-      return [];
-    }
-  }
-  
-  // Save notes vào file
-  Future<bool> saveNotes(List<Note> notes) async {
-    try {
-      final jsonList = notes.map((note) => note.toJson()).toList();
-      final jsonString = jsonEncode(jsonList);
-      
-      final file = File(await _getFilePath());
-      await file.writeAsString(jsonString);
-      
-      return true;
-    } catch (e) {
-      print("Lỗi save notes: $e");
-      return false;
-    }
-  }
-  
-  // Thêm note mới
-  Future<bool> addNote(Note note) async {
-    final notes = await loadNotes();
-    notes.add(note);
-    return await saveNotes(notes);
-  }
-  
-  // Xóa note
-  Future<bool> deleteNote(String noteId) async {
-    final notes = await loadNotes();
-    notes.removeWhere((note) => note.id == noteId);
-    return await saveNotes(notes);
-  }
-  
-  // Cập nhật note
-  Future<bool> updateNote(Note updatedNote) async {
-    final notes = await loadNotes();
-    final index = notes.indexWhere((note) => note.id == updatedNote.id);
-    
-    if (index != -1) {
-      notes[index] = updatedNote;
-      return await saveNotes(notes);
-    }
-    
-    return false;
-  }
-}
-```
-
-### screens/note_screen.dart
-
-```dart
-import 'package:flutter/material.dart';
-import '../models/note.dart';
-import '../services/note_storage.dart';
-
-class NoteScreen extends StatefulWidget {
-  const NoteScreen({super.key});
-
-  @override
-  State<NoteScreen> createState() => _NoteScreenState();
-}
-
-class _NoteScreenState extends State<NoteScreen> {
-  final NoteStorage _storage = NoteStorage();
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _contentController = TextEditingController();
-  
-  List<Note> _notes = [];
-  bool _isLoading = true;
-  
-  @override
-  void initState() {
-    super.initState();
-    _loadNotes();
-  }
-  
-  Future<void> _loadNotes() async {
-    setState(() => _isLoading = true);
-    final notes = await _storage.loadNotes();
-    setState(() {
-      _notes = notes;
-      _isLoading = false;
-    });
-  }
-  
-  Future<void> _addNote() async {
-    if (_titleController.text.trim().isEmpty) return;
-    
-    final note = Note(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: _titleController.text.trim(),
-      content: _contentController.text.trim(),
-      createdAt: DateTime.now(),
-    );
-    
-    final success = await _storage.addNote(note);
-    if (success) {
-      _titleController.clear();
-      _contentController.clear();
-      _loadNotes();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Đã thêm ghi chú")),
-        );
-      }
-    }
-  }
-  
-  Future<void> _deleteNote(String noteId) async {
-    final success = await _storage.deleteNote(noteId);
-    if (success) {
-      _loadNotes();
-    }
-  }
-  
-  Future<void> _toggleComplete(Note note) async {
-    final updatedNote = Note(
-      id: note.id,
-      title: note.title,
-      content: note.content,
-      createdAt: note.createdAt,
-      isCompleted: !note.isCompleted,
-    );
-    
-    await _storage.updateNote(updatedNote);
-    _loadNotes();
-  }
-  
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Ghi chú offline")),
-      body: _isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _titleController,
-                      decoration: const InputDecoration(
-                        labelText: "Tiêu đề",
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _contentController,
-                      decoration: const InputDecoration(
-                        labelText: "Nội dung",
-                        border: OutlineInputBorder(),
-                      ),
-                      maxLines: 3,
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton(
-                      onPressed: _addNote,
-                      child: const Text("Thêm ghi chú"),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: _notes.isEmpty
-                  ? const Center(child: Text("Chưa có ghi chú nào"))
-                  : ListView.builder(
-                      itemCount: _notes.length,
-                      itemBuilder: (context, index) {
-                        final note = _notes[index];
-                        return ListTile(
-                          leading: Checkbox(
-                            value: note.isCompleted,
-                            onChanged: (_) => _toggleComplete(note),
-                          ),
-                          title: Text(
-                            note.title,
-                            style: TextStyle(
-                              decoration: note.isCompleted
-                                ? TextDecoration.lineThrough
-                                : null,
-                            ),
-                          ),
-                          subtitle: Text(note.content),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteNote(note.id),
-                          ),
-                        );
-                      },
-                    ),
-              ),
-            ],
-          ),
-    );
-  }
-  
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _contentController.dispose();
-    super.dispose();
-  }
-}
-```
-
----
-
-## 11.5. **Ví dụ: Lưu giỏ hàng tạm thời**
-
-```dart
-// services/cart_storage.dart
-class CartStorage {
-  static const String _cartKey = "cart_items";
-  
-  // Lưu giỏ hàng
-  static Future<bool> saveCart(List<Map<String, dynamic>> items) async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonString = jsonEncode(items);
-    return await prefs.setString(_cartKey, jsonString);
-  }
-  
-  // Lấy giỏ hàng
-  static Future<List<Map<String, dynamic>>> getCart() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonString = prefs.getString(_cartKey);
-    
-    if (jsonString == null) {
-      return [];
-    }
-    
-    try {
-      final jsonList = jsonDecode(jsonString) as List<dynamic>;
-      return jsonList.cast<Map<String, dynamic>>();
-    } catch (e) {
-      return [];
-    }
-  }
-  
-  // Xóa giỏ hàng
-  static Future<void> clearCart() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_cartKey);
-  }
-}
-```
-
----
-
-# 12. **Best Practices & Performance**
-
-## 12.1. **Khi nào dùng SharedPreferences vs File?**
+## 11.1. **Khi nào dùng SharedPreferences vs File?**
 
 **SharedPreferences - Dùng khi:**
 - Dữ liệu nhỏ (< 1MB)
@@ -1556,184 +1091,554 @@ class CartStorage {
 
 ---
 
-## 12.2. **Best Practices**
+## 11.2. **Best Practices**
 
-### 1. Luôn dùng await cho thao tác async
+1. **Luôn dùng await** cho thao tác async.
+2. **Luôn kiểm tra null** và set giá trị mặc định.
+3. **Xử lý lỗi đầy đủ** với try-catch.
+4. **Tách logic storage** vào Service class.
+5. **Cache SharedPreferences instance** nếu gọi nhiều lần.
+6. **Kiểm tra file tồn tại** trước khi đọc.
+7. **Dùng Model class** cho JSON để đảm bảo type-safe.
 
-```dart
-// ✅ ĐÚNG
-await prefs.setString("key", "value");
-await file.writeAsString("content");
+---
 
-// ❌ SAI
-prefs.setString("key", "value");  // Quên await
+# 12. **CASE STUDY 1: Ứng dụng Ghi chú Offline (File + JSON)**
+
+Chúng ta sẽ xây dựng một ứng dụng ghi chú đơn giản, **lưu trữ dữ liệu vào file JSON local**. Dữ liệu vẫn còn nguyên ngay cả khi tắt ứng dụng.
+
+**Cấu trúc dự án:**
+```
+lib/
+  models/
+    note.dart
+  services/
+    note_storage.dart
+  screens/
+    note_screen.dart
 ```
 
-### 2. Luôn kiểm tra null và set giá trị mặc định
+### Bước 1: Tạo Model (`models/note.dart`)
 
 ```dart
-// ✅ ĐÚNG
-final username = prefs.getString("username") ?? "Guest";
-final notes = await loadNotes() ?? [];
-
-// ❌ SAI
-final username = prefs.getString("username");  // Có thể null
-print(username.length);  // Crash nếu null!
-```
-
-### 3. Xử lý lỗi đầy đủ
-
-```dart
-// ✅ ĐÚNG
-Future<bool> saveData(String data) async {
-  try {
-    final file = File(await getFilePath());
-    await file.writeAsString(data);
-    return true;
-  } catch (e) {
-    print("Lỗi: $e");
-    return false;
+class Note {
+  final String id;
+  final String title;
+  final String content;
+  final DateTime createdAt;
+  final bool isCompleted;
+  
+  Note({
+    required this.id,
+    required this.title,
+    required this.content,
+    required this.createdAt,
+    this.isCompleted = false,
+  });
+  
+  // Chuyển Object -> JSON Map
+  Map<String, dynamic> toJson() {
+    return {
+      "id": id,
+      "title": title,
+      "content": content,
+      "createdAt": createdAt.toIso8601String(),
+      "isCompleted": isCompleted,
+    };
+  }
+  
+  // Chuyển JSON Map -> Object
+  factory Note.fromJson(Map<String, dynamic> json) {
+    return Note(
+      id: json["id"] as String,
+      title: json["title"] as String,
+      content: json["content"] as String,
+      createdAt: DateTime.parse(json["createdAt"] as String),
+      isCompleted: json["isCompleted"] as bool? ?? false,
+    );
   }
 }
+```
 
-// ❌ SAI
-Future<void> saveData(String data) async {
-  final file = File(await getFilePath());
-  await file.writeAsString(data);  // Crash nếu lỗi!
+### Bước 2: Tạo Service (`services/note_storage.dart`)
+
+Class này quản lý việc đọc/ghi file.
+
+```dart
+import 'dart:io';
+import 'dart:convert';
+import 'package:path_provider/path_provider.dart';
+import '../models/note.dart';
+
+class NoteStorage {
+  // Lấy đường dẫn file lưu trữ
+  Future<String> _getFilePath() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return "${dir.path}/notes.json";
+  }
+  
+  // Đọc danh sách ghi chú từ file
+  Future<List<Note>> loadNotes() async {
+    try {
+      final file = File(await _getFilePath());
+      
+      // Nếu file chưa tồn tại -> trả về list rỗng
+      if (!await file.exists()) return [];
+      
+      final jsonString = await file.readAsString();
+      final jsonList = jsonDecode(jsonString) as List<dynamic>;
+      
+      return jsonList
+        .map((json) => Note.fromJson(json as Map<String, dynamic>))
+        .toList();
+    } catch (e) {
+      print("Lỗi đọc file: $e");
+      return [];
+    }
+  }
+  
+  // Lưu danh sách ghi chú vào file
+  Future<bool> saveNotes(List<Note> notes) async {
+    try {
+      final jsonList = notes.map((note) => note.toJson()).toList();
+      final jsonString = jsonEncode(jsonList);
+      
+      final file = File(await _getFilePath());
+      await file.writeAsString(jsonString);
+      
+      return true;
+    } catch (e) {
+      print("Lỗi ghi file: $e");
+      return false;
+    }
+  }
 }
 ```
 
-### 4. Tách logic storage vào Service class
+### Bước 3: Tích hợp UI (`screens/note_screen.dart`)
+
+Load data ở `initState`, thêm/sửa/xóa gọi Service và cập nhật UI.
+
+*(Code UI tương tự như ví dụ trước, tập trung vào logic gọi `_storage.saveNotes` mỗi khi dữ liệu thay đổi)*
+
+---
+
+# 13. **CASE STUDY 2: Quản lý Cài đặt (SharedPreferences)**
+
+Ứng dụng settings cho phép người dùng lưu: Theme (Sáng/Tối), Ngôn ngữ (Vi/En), và có nhận thông báo hay không.
+
+**Cấu trúc:**
+```
+lib/
+  services/
+    settings_service.dart
+  screens/
+    settings_screen.dart
+```
+
+### Bước 1: Tạo Service (`services/settings_service.dart`)
 
 ```dart
-// ✅ ĐÚNG: Tách vào Service
-class NoteStorage {
-  Future<List<Note>> loadNotes() async {...}
-  Future<bool> saveNotes(List<Note> notes) async {...}
+import 'package:shared_preferences/shared_preferences.dart';
+
+class SettingsService {
+  static const _keyTheme = 'is_dark_mode';
+  static const _keyLanguage = 'language_code';
+  static const _keyNotif = 'notifications_enabled';
+
+  // --- THEME ---
+  static Future<void> saveTheme(bool isDark) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyTheme, isDark);
+  }
+
+  static Future<bool> getTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyTheme) ?? false; // Mặc định là Sáng (false)
+  }
+
+  // --- LANGUAGE ---
+  static Future<void> saveLanguage(String langCode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyLanguage, langCode);
+  }
+
+  static Future<String> getLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyLanguage) ?? 'vi'; // Mặc định Tiếng Việt
+  }
+
+  // --- NOTIFICATIONS ---
+  static Future<void> saveNotification(bool isEnabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyNotif, isEnabled);
+  }
+
+  static Future<bool> getNotification() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyNotif) ?? true; // Mặc định là Bật
+  }
+}
+```
+
+### Bước 2: UI Màn hình Cài đặt (`screens/settings_screen.dart`)
+
+```dart
+import 'package:flutter/material.dart';
+import '../services/settings_service.dart';
+
+class SettingsScreen extends StatefulWidget {
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-// ❌ SAI: Logic trong UI
-class NoteScreen extends StatelessWidget {
+class _SettingsScreenState extends State<SettingsScreen> {
+  bool _isDark = false;
+  String _language = 'vi';
+  bool _isNotifEnabled = true;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  // Load tất cả cài đặt cùng lúc
+  Future<void> _loadSettings() async {
+    // Chạy song song cho nhanh
+    final values = await Future.wait([
+      SettingsService.getTheme(),
+      SettingsService.getLanguage(),
+      SettingsService.getNotification(),
+    ]);
+
+    if (mounted) {
+      setState(() {
+        _isDark = values[0] as bool;
+        _language = values[1] as String;
+        _isNotifEnabled = values[2] as bool;
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Logic storage ở đây → Rối!
+    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Cài đặt")),
+      body: ListView(
+        children: [
+          SwitchListTile(
+            title: const Text("Chế độ Tối"),
+            value: _isDark,
+            onChanged: (val) async {
+              setState(() => _isDark = val);
+              await SettingsService.saveTheme(val);
+            },
+          ),
+          ListTile(
+            title: const Text("Ngôn ngữ"),
+            subtitle: Text(_language == 'vi' ? "Tiếng Việt" : "English"),
+            trailing: DropdownButton<String>(
+              value: _language,
+              items: const [
+                DropdownMenuItem(value: 'vi', child: Text("VI")),
+                DropdownMenuItem(value: 'en', child: Text("EN")),
+              ],
+              onChanged: (val) async {
+                if (val != null) {
+                  setState(() => _language = val);
+                  await SettingsService.saveLanguage(val);
+                }
+              },
+            ),
+          ),
+          SwitchListTile(
+            title: const Text("Nhận thông báo"),
+            value: _isNotifEnabled,
+            onChanged: (val) async {
+              setState(() => _isNotifEnabled = val);
+              await SettingsService.saveNotification(val);
+            },
+          ),
+        ],
+      ),
+    );
   }
 }
 ```
 
-### 5. Cache SharedPreferences instance
+---
 
-```dart
-// ✅ ĐÚNG: Cache instance
-class StorageService {
-  static SharedPreferences? _prefs;
-  
-  static Future<SharedPreferences> getInstance() async {
-    _prefs ??= await SharedPreferences.getInstance();
-    return _prefs!;
-  }
-}
+# 14. **CASE STUDY 3: Todo App (SQLite)**
 
-// ❌ SAI: Lấy instance mỗi lần
-Future<void> saveData() async {
-  final prefs = await SharedPreferences.getInstance();  // Chậm!
-  await prefs.setString("key", "value");
-}
+
+Khi dữ liệu lớn, có cấu trúc phức tạp (quan hệ bảng), hoặc cần truy vấn (search, sort, filter) nhanh, **SQLite** là lựa chọn số 1.
+
+**Cài đặt:**
+
+```yaml
+dependencies:
+  sqflite: ^2.3.0
+  path: ^1.8.3
 ```
 
-### 6. Kiểm tra file tồn tại trước khi đọc
+## 14.1. **Cấu trúc cơ bản**
+
+SQLite lưu dữ liệu trong **File** (ví dụ `demo.db`).
+Mỗi **Table** (bảng) lưu các dòng dữ liệu giống nhau.
+
+**Ví dụ:** Bảng `Todo`
+| id | title | status |
+|----|-------|--------|
+| 1  | Học Flutter | 0 |
+| 2  | Ngủ | 1 |
+
+---
+
+## 14.2. **CASE STUDY: Xây dựng Todo App với SQLite (Step-by-Step)**
+
+Chúng ta sẽ xây dựng ứng dụng Todo hoàn chỉnh với `sqflite`.
+
+### Bước 1: Tạo Model
+
+SQLite làm việc với `Map<String, dynamic>`, nên Model cần hàm chuyển đổi.
 
 ```dart
-// ✅ ĐÚNG
-Future<String> readFile() async {
-  final file = File(await getFilePath());
-  if (await file.exists()) {
-    return await file.readAsString();
-  }
-  return "";
-}
-
-// ❌ SAI
-Future<String> readFile() async {
-  final file = File(await getFilePath());
-  return await file.readAsString();  // Crash nếu file chưa tồn tại!
-}
-```
-
-### 7. Dùng Model class cho JSON
-
-```dart
-// ✅ ĐÚNG: Type-safe
-class Note {
+class Todo {
+  final int? id;
   final String title;
-  Note({required this.title});
-  Map<String, dynamic> toJson() {...}
-  factory Note.fromJson(Map<String, dynamic> json) {...}
-}
+  final bool isDone;
 
-// ❌ SAI: Dùng Map trực tiếp
-final data = jsonDecode(jsonString) as Map;
-print(data["title"]);  // Dễ lỗi nếu key sai
+  Todo({this.id, required this.title, this.isDone = false});
+
+  // Convert Todo -> Map (để lưu vào DB)
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id, // id auto-increment nên có thể null khi insert
+      'title': title,
+      'is_done': isDone ? 1 : 0, // SQLite không có bool, dùng int (0/1)
+    };
+  }
+
+  // Convert Map -> Todo (để đọc từ DB)
+  factory Todo.fromMap(Map<String, dynamic> map) {
+    return Todo(
+      id: map['id'],
+      title: map['title'],
+      isDone: map['is_done'] == 1,
+    );
+  }
+}
 ```
 
----
+### Bước 2: Tạo DatabaseHelper (Singleton)
 
-## 12.3. **Performance Tips**
-
-### 1. Tránh ghi file quá thường xuyên
+Tạo file `services/database_helper.dart`. Đây là class quản lý kết nối DB.
 
 ```dart
-// ❌ SAI: Ghi file mỗi lần thay đổi
-void updateNote(Note note) {
-  notes[index] = note;
-  saveNotes(notes);  // Ghi file ngay
-}
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
+import '../models/todo.dart';
 
-// ✅ ĐÚNG: Batch save hoặc debounce
-Timer? _saveTimer;
-void updateNote(Note note) {
-  notes[index] = note;
+class DatabaseHelper {
+  // Singleton pattern: Đảm bảo chỉ có 1 instance duy nhất
+  static final DatabaseHelper instance = DatabaseHelper._init();
+  static Database? _database;
+
+  DatabaseHelper._init();
+
+  // Getter để lấy database. Nếu chưa có thì init.
+  Future<Database> get database async {
+    if (_database != null) return _database!;
+    _database = await _initDB('todos.db');
+    return _database!;
+  }
+
+  // Khởi tạo DB
+  Future<Database> _initDB(String filePath) async {
+    // Lấy đường dẫn thư mục mặc định của hệ thống
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, filePath);
+
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: _createDB, // Gọi khi DB được tạo lần đầu
+    );
+  }
+
+  // Tạo bảng
+  Future<void> _createDB(Database db, int version) async {
+    await db.execute('''
+      CREATE TABLE todos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        is_done INTEGER NOT NULL
+      )
+    ''');
+  }
+
+  // --- CÁC HÀM CRUD ---
+
+  // 1. Create (Thêm)
+  Future<int> create(Todo todo) async {
+    final db = await instance.database;
+    // conflictAlgorithm: replace - nếu trùng ID thì ghi đè
+    return await db.insert('todos', todo.toMap());
+  }
+
+  // 2. Read (Đọc tất cả)
+  Future<List<Todo>> readAllTodos() async {
+    final db = await instance.database;
+    
+    // Query và sắp xếp theo thời gian (mới nhất lên đầu nếu có field time)
+    // Ở đây sắp xếp theo ID giảm dần
+    final result = await db.query('todos', orderBy: 'id DESC');
+
+    return result.map((json) => Todo.fromMap(json)).toList();
+  }
+
+  // 3. Update (Sửa)
+  Future<int> update(Todo todo) async {
+    final db = await instance.database;
+
+    return await db.update(
+      'todos',
+      todo.toMap(),
+      where: 'id = ?', // Điều kiện update
+      whereArgs: [todo.id], // Tham số thay thế cho ?
+    );
+  }
+
+  // 4. Delete (Xóa)
+  Future<int> delete(int id) async {
+    final db = await instance.database;
+    return await db.delete(
+      'todos',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
   
-  // Debounce: Chờ 500ms sau khi ngừng thay đổi
-  _saveTimer?.cancel();
-  _saveTimer = Timer(Duration(milliseconds: 500), () {
-    saveNotes(notes);
-  });
+  // Close DB (khi không dùng nữa, thường ít dùng trong app mobile)
+  Future<void> close() async {
+    final db = await instance.database;
+    db.close();
+  }
 }
 ```
 
-### 2. Dùng background isolate cho file lớn
+### Bước 3: Tích hợp vào UI
 
 ```dart
-// ✅ ĐÚNG: Xử lý file lớn trong isolate
-Future<void> saveLargeFile(String data) async {
-  await compute(_saveFileInIsolate, data);
+class TodoScreen extends StatefulWidget {
+  @override
+  State<TodoScreen> createState() => _TodoScreenState();
 }
 
-static Future<void> _saveFileInIsolate(String data) async {
-  final file = File(await getFilePath());
-  await file.writeAsString(data);
+class _TodoScreenState extends State<TodoScreen> {
+  List<Todo> todos = [];
+  bool isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    refreshTodos();
+  }
+
+  // Hàm load dữ liệu từ DB
+  Future<void> refreshTodos() async {
+    setState(() => isLoading = true);
+    // Gọi DatabaseHelper
+    todos = await DatabaseHelper.instance.readAllTodos();
+    setState(() => isLoading = false);
+  }
+
+  Future<void> addTodo() async {
+    final todo = Todo(title: "Việc mới ${DateTime.now().second}");
+    await DatabaseHelper.instance.create(todo);
+    refreshTodos(); // Load lại list
+  }
+  
+  Future<void> toggleTodo(Todo todo) async {
+    final newTodo = Todo(
+      id: todo.id, 
+      title: todo.title, 
+      isDone: !todo.isDone
+    );
+    await DatabaseHelper.instance.update(newTodo);
+    refreshTodos();
+  }
+
+  Future<void> deleteTodo(int id) async {
+    await DatabaseHelper.instance.delete(id);
+    refreshTodos();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('SQLite Todo')),
+      floatingActionButton: FloatingActionButton(
+        child: Icon(Icons.add),
+        onPressed: addTodo,
+      ),
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : ListView.builder(
+              itemCount: todos.length,
+              itemBuilder: (context, index) {
+                final todo = todos[index];
+                return ListTile(
+                  title: Text(todo.title),
+                  leading: Checkbox(
+                    value: todo.isDone,
+                    onChanged: (_) => toggleTodo(todo),
+                  ),
+                  trailing: IconButton(
+                    icon: Icon(Icons.delete),
+                    onPressed: () => deleteTodo(todo.id!),
+                  ),
+                );
+              },
+            ),
+    );
+  }
 }
 ```
 
-### 3. Compress JSON nếu cần
+## 14.3. **Lưu ý quan trọng với SQLite**
 
-```dart
-// Nếu JSON quá lớn, có thể compress
-import 'dart:io';
-import 'package:archive/archive.dart';
+1. **Migration (Nâng cấp DB):**
+   Khi bạn sửa cấu trúc bảng (ví dụ thêm cột `description`), bạn phải tăng `version` trong `openDatabase` và xử lý `onUpgrade`.
+   
+   ```dart
+   openDatabase(
+     path,
+     version: 2, // Tăng version
+     onUpgrade: (db, oldVersion, newVersion) async {
+       if (oldVersion < 2) {
+         await db.execute('ALTER TABLE todos ADD COLUMN description TEXT');
+       }
+     },
+   )
+   ```
 
-Future<void> saveCompressedJson(List<Map> data) async {
-  final jsonString = jsonEncode(data);
-  final compressed = GZipEncoder().encode(utf8.encode(jsonString));
-  final file = File(await getFilePath());
-  await file.writeAsBytes(compressed);
-}
-```
+2. **Kiểu dữ liệu:**
+   SQLite chỉ hỗ trợ: `INTEGER`, `REAL`, `TEXT`, `BLOB`.
+   - `bool` lưu là `INTEGER` (0/1).
+   - `DateTime` lưu là `TEXT` (ISO8601 string) hoặc `INTEGER` (timestamp).
+
+3. **Luôn đóng connection?**
+   Với app Flutter đơn giản, bạn có thể giữ connection mở suốt vòng đời app (singleton).
 
 ---
 
-# 13. Bài tập thực hành
+# 14. Bài tập thực hành
 
 1. Tạo app “Ghi nhớ tên người dùng” bằng SharedPreferences.  
 2. Tạo app lưu trạng thái dark/light vào SharedPreferences.  
@@ -1743,7 +1648,7 @@ Future<void> saveCompressedJson(List<Map> data) async {
 
 ---
 
-# 14. Mini Test cuối chương
+# 15. Mini Test cuối chương
 
 **Câu 1:** SharedPreferences lưu được loại dữ liệu gì?  
 → int, double, bool, String, List<String>.
@@ -1781,6 +1686,7 @@ Future<void> saveCompressedJson(List<Map> data) async {
 
 - **SharedPreferences** = dữ liệu nhỏ (< 1MB), cài đặt, token.  
 - **File storage** = dữ liệu lớn hơn, JSON, danh sách dài.  
+- **SQLite** = Dữ liệu có cấu trúc, quan hệ, cần query phức tạp.
 - **Luôn await** thao tác ghi dữ liệu (setString, writeAsString).  
 - **Không viết file** trong build() → gây lag.  
 - **Lưu object** phải convert sang JSON (jsonEncode).  

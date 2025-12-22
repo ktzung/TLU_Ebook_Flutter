@@ -73,6 +73,33 @@ Future<List<dynamic>> fetchPosts() async {
 
 ---
 
+### 🧠 Giảng giải chi tiết: Future, async, await là gì?
+
+Trong ví dụ trên, bạn thấy 3 từ khóa quan trọng: `Future`, `async`, `await`. Đây là bộ 3 không thể thiếu khi làm việc với API (hoặc bất kỳ tác vụ nào tốn thời gian như đọc file, query DB).
+
+#### 1. Future (Tương lai)
+- Là một **chiếc hộp đóng gói kết quả sẽ có trong tương lai**.
+- Khi bạn gọi hàm, nó chưa có dữ liệu ngay lập tức mà trả về một cái "phiếu hẹn" (`Future`).
+- Ví dụ: `Future<List>` nghĩa là "Tôi hứa sẽ trả về một List, nhưng chưa phải bây giờ, hãy đợi chút".
+
+#### 2. async (Bất đồng bộ)
+- Đánh dấu một hàm là **bất đồng bộ** (có thực hiện việc chờ đợi).
+- Bắt buộc phải thêm `async` vào sau tên hàm thì mới dùng được từ khóa `await` bên trong.
+- Hàm `async` luôn luôn trả về một `Future`.
+
+#### 3. await (Chờ đợi)
+- Dùng để **tạm dừng** hàm `async` cho đến khi tác vụ xong.
+- `await http.get(url)` nghĩa là: "Này Flutter, dừng ở dòng này, chờ server trả lời xong thì mới chạy dòng tiếp theo".
+- Nếu không có `await`, code sẽ chạy tuột xuống dưới mà không đợi dữ liệu → lỗi `null` hoặc sai logic.
+
+**Ví dụ đời thường:**
+- Bạn gọi đồ ăn (Gửi Request).
+- Nhân viên đưa bạn cái thẻ rung (**Future**).
+- Bạn ngồi lướt web (**async** - không bị đơ người đứng chờ).
+- Khi thẻ rung (**await** xong), bạn lấy đồ ăn (Kết quả).
+
+---
+
 ### 🧠 Giảng giải chi tiết: HTTP GET Request
 
 **HTTP GET là gì?**
@@ -2122,6 +2149,25 @@ factory Post.fromJson(Map<String, dynamic> json) {
   );
 }
 ```
+
+---
+
+### Case Study 5: Lỗi Network Refuse / XMLHttpRequest error trên Web (CORS)
+
+#### ❌ Vấn đề:
+Khi chạy trên **Chrome (Web)**, bạn gọi API nhưng gặp lỗi: `XMLHttpRequest error` hoặc `NetworkError` mặc dù API vẫn hoạt động tốt trên Postman/Android.
+
+#### 🔍 Nguyên nhân:
+Đây là **CORS Policy** (Cross-Origin Resource Sharing) - cơ chế bảo mật của trình duyệt. Trình duyệt chặn không cho web ở `localhost` gọi API từ domain khác (ví dụ: `jsonplaceholder.typicode.com`) nếu server API không cho phép.
+
+#### ✅ Giải pháp (Dev only):
+Chạy Chrome với cờ tắt bảo mật (chỉ dùng để dev):
+
+```bash
+flutter run -d chrome --web-browser-flag "--disable-web-security"
+```
+
+**Lưu ý:** Khi deploy thật, Backend API phải cấu hình `Access-Control-Allow-Origin: *` hoặc domain của bạn.
 
 ---
 
