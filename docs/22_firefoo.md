@@ -121,4 +121,4 @@ console.log('Xong! Đã chuyển đổi tiền tệ thành công.');
 > **Tổng kết:** Firefoo là cánh tay phải đắc lực cho Backend Developer dùng Firebase. Nó giúp bạn thao tác dữ liệu thô (Raw Data) nhanh chóng, chính xác và chuyên nghiệp.
 
 ---
-[< Bài trước](21_firebase_studio.md) | [Kết thúc Lộ trình >](EShop_Roadmap.md)
+[< Bài trước](21_firebase_studio.md) | [Bài tiếp theo >](23_iot_basics.md)
