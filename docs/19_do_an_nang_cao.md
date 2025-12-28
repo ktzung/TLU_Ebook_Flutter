@@ -129,3 +129,8 @@ Dù chọn Backend nào, App Flutter phải có các chức năng sau:
 *   **Admin App**: Làm thêm 1 app (hoặc phân quyền) cho Admin vào xem đơn hàng và đổi trạng thái từ "Mới" -> "Đang giao".
 *   **Push Notification**: Khi Admin đổi trạng thái đơn hàng, điện thoại của khách nhận được thông báo (dùng FCM).
 *   **Search**: Tìm kiếm sản phẩm (Firebase dùng Algolia/Text Search, SQL dùng `LIKE`).
+
+---
+
+[< Bài trước](18_bai_tap_tong_hop.md) | [Bài tiếp theo >](20_sensors.md)
+
