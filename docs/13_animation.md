@@ -902,7 +902,45 @@ void initState() {
 
 ---
 
-# 8. **Sai vs Đúng – các lỗi sinh viên cực hay mắc**
+# 8. **Hero Animation – hiệu ứng chuyển cảnh "bay"**
+*(Chuyển động liền mạch giữa 2 màn hình)*
+
+Bạn có thấy khi bấm vào một ảnh danh sách, nó "bay" và phóng to sang màn hình chi tiết không?
+Đó là **Hero Animation**.
+
+### Code mẫu:
+
+```dart
+// Màn hình 1 (Danh sách)
+Hero(
+  tag: "product_123", // Tag phải DUY NHẤT
+  child: Image.network("https://picsum.photos/200"),
+)
+
+// Màn hình 2 (Chi tiết)
+Hero(
+  tag: "product_123", // Tag trùng với màn hình 1
+  child: Image.network("https://picsum.photos/800"),
+)
+```
+
+---
+
+### 🧠 Giảng giải chi tiết: Hero là gì?
+
+**Hero là gì?**
+- Widget giúp **chuyển tiếp** 1 element từ màn hình A sang màn hình B.
+- Element sẽ "bay" và biến đổi kích thước mượt mà giữa 2 màn hình.
+- **Quan trọng nhất**: `tag` phải giống hệt nhau ở 2 màn hình.
+
+**Ví dụ thực tế:**
+- Avatar ở danh sách -> Avatar to ở trang cá nhân.
+- Ảnh bìa sách -> Poster to ở chi tiết sách.
+- Nút FAB (Floating Action Button) -> Biến thành Card (Dialog).
+
+---
+
+# 9. **Sai vs Đúng – các lỗi sinh viên cực hay mắc**
 
 ## ❌ Sai: animation không chạy vì thiếu setState
 
@@ -1225,7 +1263,7 @@ Transform.rotate(
 
 ---
 
-# 9. **Các ví dụ thực tế đa dạng**
+# 10. **Các ví dụ thực tế đa dạng**
 
 ## 9.1. **Ví dụ: Button phóng to thu nhỏ**
 
@@ -1528,7 +1566,7 @@ class _SlideInMenuState extends State<SlideInMenu>
 
 ---
 
-# 10. **Best Practices**
+# 11. **Best Practices**
 
 ## 10.1. **Khi nào dùng widget animation nào?**
 
