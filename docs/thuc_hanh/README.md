@@ -42,33 +42,33 @@ Thư mục này chứa tất cả các bài thực hành chi tiết theo từng 
 ### 🟡 PHẦN II: FLUTTER TRUNG CẤP
 
 #### Chương 10: HTTP API & Networking
-- ✅ **10_thuc_hanh_http_api.md** - Thực hành gọi API đơn giản với http package
-- ✅ **10_thuc_hanh_api_dotnet.md** - Dự án thực tế: Bloc + Provider + .NET Web API
+- ✅ **10_thuc_hanh_http_api.md** - Thực hành gọi API đơn giản với http package (FutureBuilder)
+- ✅ **10b_thuc_hanh_du_an_tong_hop_bloc_provider_api.md** - Dự án tổng hợp: Bloc + Provider + .NET Web API
 
 #### Chương 11: Local Storage
 - ⚠️ **11_thuc_hanh_local_storage.md** - Thực hành SharedPreferences, SQLite (CẦN BỔ SUNG)
 
-#### Chương 12: Firebase
-- ⚠️ **12_thuc_hanh_firebase.md** - Thực hành Firebase Authentication, Firestore (CẦN BỔ SUNG)
+#### Chương 12: Widgets Nâng cao
+- ✅ **12_thuc_hanh_widgets_nang_cao.md** - Thực hành ListTile, Card, Dialog, BottomSheet, Drawer
 
 #### Chương 17: Laravel/MySQL API
-- ⚠️ **17_thuc_hanh_laravel_api.md** - Thực hành kết nối với Laravel API (CẦN BỔ SUNG)
+- ✅ **17_thuc_hanh_laravel_mysql_api.md** - Thực hành kết nối với Laravel API
 
 ---
 
 ### 🔴 PHẦN III: FLUTTER NÂNG CAO
 
 #### Chương 13: Animation
-- ⚠️ **13_thuc_hanh_animation.md** - Thực hành Animation cơ bản và nâng cao (CẦN BỔ SUNG)
+- ✅ **13_thuc_hanh_animation.md** - Thực hành Animation cơ bản và nâng cao
 
 #### Chương 14: Clean Architecture
-- ⚠️ **14_thuc_hanh_clean_architecture.md** - Thực hành tổ chức code theo Clean Architecture (CẦN BỔ SUNG)
+- ✅ **14_thuc_hanh_clean_architecture.md** - Thực hành tổ chức code theo Clean Architecture
 
 #### Chương 15: Testing
-- ⚠️ **15_thuc_hanh_testing.md** - Thực hành Unit Test, Widget Test, Integration Test (CẦN BỔ SUNG)
+- ✅ **15_thuc_hanh_testing.md** - Thực hành Unit Test, Widget Test, Integration Test
 
 #### Chương 16: CI/CD & Release
-- ⚠️ **16_thuc_hanh_cicd_release.md** - Thực hành build APK/IPA và release lên store (CẦN BỔ SUNG)
+- ✅ **16_thuc_hanh_ci_cd_release.md** - Thực hành build APK/IPA và release lên store
 
 ---
 
@@ -76,9 +76,9 @@ Thư mục này chứa tất cả các bài thực hành chi tiết theo từng 
 
 | Trạng thái | Số lượng | Tỷ lệ |
 |-----------|---------|-------|
-| ✅ Đã có | 10 | 62.5% |
-| ⚠️ Cần bổ sung | 6 | 37.5% |
-| **Tổng cộng** | **16** | **100%** |
+| ✅ Đã có | 17 | 100% |
+| ⚠️ Cần bổ sung | 0 | 0% |
+| **Tổng cộng** | **17** | **100%** |
 
 ---
 
@@ -99,22 +99,23 @@ thuc_hanh/
 ├── README.md (file này)
 ├── ROADMAP.md (Roadmap chi tiết)
 ├── 01_thuc_hanh_cai_dat.md ✅
-├── 02_thuc_hanh_dart.md ⚠️ (Cần tạo)
-├── 03_thuc_hanh_cau_truc.md ⚠️ (Cần tạo)
+├── 02_thuc_hanh_dart.md ✅
+├── 03_thuc_hanh_cau_truc_du_an.md ✅
 ├── 04_thuc_hanh_widget_layout.md ✅
 ├── 06_thuc_hanh_navigation.md ✅
 ├── 07_thuc_hanh_form_input.md ✅
 ├── 08_thuc_hanh_state_management.md ✅
 ├── 09_thuc_hanh_provider.md ✅
 ├── 09b_thuc_hanh_bloc.md ✅
-├── 10_thuc_hanh_api_dotnet.md ✅
-├── 11_thuc_hanh_local_storage.md ⚠️ (Cần bổ sung)
-├── 12_thuc_hanh_firebase.md ⚠️ (Cần bổ sung)
-├── 13_thuc_hanh_animation.md ⚠️ (Cần bổ sung)
-├── 14_thuc_hanh_clean_architecture.md ⚠️ (Cần bổ sung)
-├── 15_thuc_hanh_testing.md ⚠️ (Cần bổ sung)
-├── 16_thuc_hanh_cicd_release.md ⚠️ (Cần bổ sung)
-└── 17_thuc_hanh_laravel_api.md ⚠️ (Cần bổ sung)
+├── 10_thuc_hanh_http_api.md ✅
+├── 10b_thuc_hanh_du_an_tong_hop_bloc_provider_api.md ✅
+├── 11_thuc_hanh_local_storage.md ✅
+├── 12_thuc_hanh_widgets_nang_cao.md ✅
+├── 13_thuc_hanh_animation.md ✅
+├── 14_thuc_hanh_clean_architecture.md ✅
+├── 15_thuc_hanh_testing.md ✅
+├── 16_thuc_hanh_ci_cd_release.md ✅
+└── 17_thuc_hanh_laravel_mysql_api.md ✅
 ```
 
 **Lưu ý:** 

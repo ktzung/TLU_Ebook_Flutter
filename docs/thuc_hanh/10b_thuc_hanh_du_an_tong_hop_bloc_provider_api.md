@@ -1,5 +1,17 @@
-# 🟦 THỰC HÀNH CHI TIẾT: BLOC + PROVIDER VỚI .NET WEB API
-## **Dự án thực tế: Ứng dụng Quản lý Sách (Book Management App)**
+# 🟦 THỰC HÀNH CHƯƠNG 10B: DỰ ÁN TỔNG HỢP
+## **Bloc + Provider + .NET Web API**
+### **Ứng dụng Quản lý Sách (Book Management App)**
+
+> **📌 DÀNH CHO NGƯỜI ĐÃ HỌC CƠ BẢN**
+> 
+> **🔗 LIÊN KẾT:** 
+> - **Bài trước:** [10 - HTTP API Đơn giản](10_thuc_hanh_http_api.md) (FutureBuilder, đơn giản)
+> - **Bài sau:** [14 - Clean Architecture](14_thuc_hanh_clean_architecture.md) (Refactor dự án này lên Clean Architecture)
+> 
+> **📋 YÊU CẦU:** 
+> - Đã hoàn thành Bài 9 (Provider) và 9b (Bloc)
+> - Đã hoàn thành Bài 10 (HTTP API đơn giản)
+> - Hiểu về async/await, Future, JSON
 
 > **📌 DÀNH CHO NGƯỜI MỚI BẮT ĐẦU**
 > 
@@ -263,6 +275,532 @@ BLOC = Nhà máy xử lý phức tạp
 ```
 
 Bây giờ bạn đã hiểu rõ, hãy bắt đầu code! 🚀
+
+---
+
+## 🔄 ALTERNATIVE: NẾU KHÔNG DÙNG BLOC THÌ SAO?
+
+> **💡 LƯU Ý:** Bài này dùng **Bloc** cho Book Management, nhưng bạn có thể dùng **Provider** hoặc **setState** thay thế. Phần này giải thích cách làm.
+
+### Tại sao có thể không dùng Bloc?
+
+- ✅ **Đơn giản hơn:** Nếu logic không phức tạp, Provider hoặc setState đủ dùng
+- ✅ **Ít code hơn:** Không cần tạo Event, State classes
+- ✅ **Dễ học hơn:** Người mới bắt đầu dễ hiểu hơn
+- ⚠️ **Nhược điểm:** Khó debug, khó test, khó scale khi app lớn
+
+---
+
+### CÁCH 1: DÙNG PROVIDER THAY BLOC
+
+**Thay vì Bloc, bạn có thể tạo `BookProvider`:**
+
+**File: `providers/book_provider.dart`**
+```dart
+import 'package:flutter/foundation.dart';
+import '../models/book.dart';
+import '../services/api_service.dart';
+
+class BookProvider with ChangeNotifier {
+  List<Book> _books = [];
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  List<Book> get books => _books;
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+
+  // Load danh sách sách
+  Future<void> loadBooks() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _books = await ApiService.getBooks();
+      _errorMessage = null;
+    } catch (e) {
+      _errorMessage = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Tạo sách mới
+  Future<void> createBook(Book book) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await ApiService.createBook(book);
+      await loadBooks(); // Load lại danh sách
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+    }
+  }
+
+  // Cập nhật sách
+  Future<void> updateBook(Book book) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await ApiService.updateBook(book);
+      await loadBooks(); // Load lại danh sách
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+    }
+  }
+
+  // Xóa sách
+  Future<void> deleteBook(int id) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await ApiService.deleteBook(id);
+      await loadBooks(); // Load lại danh sách
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+    }
+  }
+}
+```
+
+**Sử dụng trong UI:**
+```dart
+// Thay vì BlocProvider và BlocBuilder
+// Dùng Provider và Consumer
+
+class BookListScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<BookProvider>(
+      builder: (context, bookProvider, child) {
+        if (bookProvider.isLoading) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        if (bookProvider.errorMessage != null) {
+          return Center(
+            child: Text('Lỗi: ${bookProvider.errorMessage}'),
+          );
+        }
+
+        return ListView.builder(
+          itemCount: bookProvider.books.length,
+          itemBuilder: (context, index) {
+            return BookCard(book: bookProvider.books[index]);
+          },
+        );
+      },
+    );
+  }
+}
+
+// Gọi method
+context.read<BookProvider>().loadBooks();
+context.read<BookProvider>().createBook(newBook);
+```
+
+**So sánh với Bloc:**
+| Khía cạnh | Provider | Bloc |
+|-----------|----------|------|
+| **Code** | Ít hơn (không cần Event/State) | Nhiều hơn (Event + State) |
+| **Debug** | Khó biết method nào gọi | Dễ biết event nào |
+| **Test** | Khó test riêng logic | Dễ test logic độc lập |
+| **Phù hợp** | Logic đơn giản | Logic phức tạp |
+
+---
+
+### CÁCH 2: DÙNG SETSTATE (Đơn giản nhất)
+
+**Chỉ dùng StatefulWidget và setState:**
+
+**File: `screens/book_list_screen.dart`**
+```dart
+class BookListScreen extends StatefulWidget {
+  @override
+  _BookListScreenState createState() => _BookListScreenState();
+}
+
+class _BookListScreenState extends State<BookListScreen> {
+  List<Book> _books = [];
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBooks();
+  }
+
+  Future<void> _loadBooks() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final books = await ApiService.getBooks();
+      setState(() {
+        _books = books;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _createBook(Book book) async {
+    setState(() => _isLoading = true);
+    
+    try {
+      await ApiService.createBook(book);
+      await _loadBooks(); // Load lại
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null) {
+      return Center(child: Text('Lỗi: $_errorMessage'));
+    }
+
+    return ListView.builder(
+      itemCount: _books.length,
+      itemBuilder: (context, index) {
+        return BookCard(book: _books[index]);
+      },
+    );
+  }
+}
+```
+
+**So sánh với Bloc/Provider:**
+| Khía cạnh | setState | Bloc/Provider |
+|-----------|----------|---------------|
+| **Code** | Ít nhất | Nhiều hơn |
+| **State sharing** | ❌ Khó chia sẻ giữa screens | ✅ Dễ chia sẻ |
+| **Phù hợp** | App nhỏ, 1-2 màn hình | App lớn, nhiều màn hình |
+
+---
+
+### 🎯 KHI NÀO DÙNG CÁI GÌ?
+
+```
+┌─────────────────────────────────────────┐
+│  App nhỏ, logic đơn giản                │
+│  → Dùng setState                        │
+└─────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────┐
+│  App trung bình, cần chia sẻ state      │
+│  → Dùng Provider                        │
+└─────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────┐
+│  App lớn, logic phức tạp, cần test      │
+│  → Dùng Bloc                            │
+└─────────────────────────────────────────┘
+```
+
+**Ví dụ cụ thể:**
+- **setState:** Todo app đơn giản (1 màn hình)
+- **Provider:** Shopping app (cần chia sẻ cart giữa screens)
+- **Bloc:** E-commerce app lớn (nhiều features, cần test)
+
+---
+
+### 💡 TÓM TẮT
+
+**Nếu không dùng Bloc:**
+1. **Provider:** Tạo `BookProvider` với `ChangeNotifier`, dùng `notifyListeners()`
+2. **setState:** Dùng trực tiếp trong `StatefulWidget`
+
+**Lưu ý:**
+- ✅ Cả 3 cách đều hoạt động được
+- ✅ Chọn cách phù hợp với độ phức tạp của app
+- ✅ Có thể kết hợp: Bloc cho CRUD, Provider cho Auth/Theme, setState cho UI local
+
+---
+
+## 🏗️ KIẾN TRÚC ỨNG DỤNG (ARCHITECTURE)
+
+### Sơ đồ kiến trúc tổng quan
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    FLUTTER APP (Frontend)                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │   Screens    │  │   Widgets    │  │   Providers  │    │
+│  │              │  │              │  │              │    │
+│  │ - Login      │  │ - BookCard   │  │ - Auth       │    │
+│  │ - Home       │  │ - Form       │  │ - Theme      │    │
+│  │ - BookList   │  │              │  │              │    │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘    │
+│         │                  │                  │            │
+│         └──────────────────┼──────────────────┘            │
+│                            │                                │
+│                   ┌────────▼────────┐                       │
+│                   │      Blocs      │                       │
+│                   │                 │                       │
+│                   │  - BookBloc     │                       │
+│                   │  (Event/State)  │                       │
+│                   └────────┬────────┘                       │
+│                            │                                │
+│                   ┌────────▼────────┐                       │
+│                   │   API Service   │                       │
+│                   │                 │                       │
+│                   │  - getBooks()   │                       │
+│                   │  - createBook() │                       │
+│                   └────────┬────────┘                       │
+│                            │                                │
+└────────────────────────────┼────────────────────────────────┘
+                             │ HTTP Request/Response
+                             │ (JSON)
+┌────────────────────────────▼────────────────────────────────┐
+│              .NET WEB API (Backend)                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │ Controllers  │  │   Services   │  │    Models    │    │
+│  │              │  │              │  │              │    │
+│  │ BooksCtrl    │  │ (Business    │  │ - Book       │    │
+│  │              │  │  Logic)      │  │              │    │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘    │
+│         │                  │                  │            │
+│         └──────────────────┼──────────────────┘            │
+│                            │                                │
+│                   ┌────────▼────────┐                       │
+│                   │   DbContext     │                       │
+│                   │  (EF Core)      │                       │
+│                   └────────┬────────┘                       │
+│                            │                                │
+└────────────────────────────┼────────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────────┐
+│                    SQLite Database                           │
+│                                                              │
+│  ┌──────────────┐                                            │
+│  │    Books     │                                            │
+│  │  Table       │                                            │
+│  │  - Id        │                                            │
+│  │  - Title     │                                            │
+│  │  - Author    │                                            │
+│  │  - ...       │                                            │
+│  └──────────────┘                                            │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Luồng dữ liệu chi tiết (Data Flow)
+
+#### 1. Luồng Load Books (GET)
+
+```
+[User] Nhấn nút "Refresh" hoặc mở app
+    ↓
+[UI] BookListScreen hiển thị
+    ↓
+[Bloc] Dispatch LoadBooksEvent
+    ↓
+[Bloc] Emit BookLoading state
+    ↓
+[UI] Hiển thị CircularProgressIndicator
+    ↓
+[Bloc] Gọi ApiService.getBooks()
+    ↓
+[Service] Gửi HTTP GET request
+    ↓
+[Network] HTTP Request → .NET API
+    ↓
+[API] BooksController.GetBooks()
+    ↓
+[API] ApplicationDbContext.Books.ToListAsync()
+    ↓
+[Database] SELECT * FROM Books
+    ↓
+[Database] Trả về List<Book>
+    ↓
+[API] Trả về JSON Response
+    ↓
+[Network] HTTP Response → Flutter
+    ↓
+[Service] Parse JSON → List<Book>
+    ↓
+[Bloc] Emit BookLoaded(books) state
+    ↓
+[UI] BlocBuilder rebuild → Hiển thị ListView
+```
+
+#### 2. Luồng Create Book (POST)
+
+```
+[User] Điền form và nhấn "Thêm Sách"
+    ↓
+[UI] BookFormScreen.validate()
+    ↓
+[Bloc] Dispatch CreateBookEvent(book)
+    ↓
+[Bloc] Emit BookCreating state
+    ↓
+[UI] Hiển thị loading indicator
+    ↓
+[Bloc] Gọi ApiService.createBook(book)
+    ↓
+[Service] Gửi HTTP POST request với JSON body
+    ↓
+[Network] HTTP Request → .NET API
+    ↓
+[API] BooksController.CreateBook(book)
+    ↓
+[API] ApplicationDbContext.Books.Add(book)
+    ↓
+[API] SaveChangesAsync()
+    ↓
+[Database] INSERT INTO Books ...
+    ↓
+[Database] Trả về Book với Id mới
+    ↓
+[API] Trả về JSON Response (201 Created)
+    ↓
+[Network] HTTP Response → Flutter
+    ↓
+[Service] Parse JSON → Book object
+    ↓
+[Bloc] Emit BookCreated state
+    ↓
+[Bloc] Load lại danh sách (LoadBooksEvent)
+    ↓
+[UI] BlocListener hiển thị SnackBar "Thêm thành công"
+    ↓
+[UI] BlocBuilder rebuild → Hiển thị danh sách mới
+```
+
+---
+
+### Workflow phát triển ứng dụng
+
+```
+BƯỚC 1: Thiết kế Backend
+    ↓
+    ├─ Tạo .NET Web API Project
+    ├─ Thiết kế Model (Book)
+    ├─ Tạo DbContext
+    ├─ Tạo Migration
+    └─ Tạo Controller (CRUD endpoints)
+    ↓
+BƯỚC 2: Test Backend
+    ↓
+    ├─ Chạy API (dotnet run)
+    ├─ Test với Postman
+    └─ Verify database có dữ liệu
+    ↓
+BƯỚC 3: Thiết kế Frontend
+    ↓
+    ├─ Tạo Flutter Project
+    ├─ Cài đặt dependencies
+    └─ Tạo cấu trúc thư mục
+    ↓
+BƯỚC 4: Xây dựng Models & Services
+    ↓
+    ├─ Tạo Book Model (fromJson/toJson)
+    └─ Tạo ApiService (HTTP calls)
+    ↓
+BƯỚC 5: Xây dựng State Management
+    ↓
+    ├─ Tạo Providers (Auth, Theme)
+    ├─ Tạo Blocs (BookBloc)
+    └─ Tạo Events & States
+    ↓
+BƯỚC 6: Xây dựng UI
+    ↓
+    ├─ Login Screen
+    ├─ Home Screen
+    ├─ Book List Screen
+    ├─ Book Form Screen
+    └─ Book Card Widget
+    ↓
+BƯỚC 7: Kết nối & Test
+    ↓
+    ├─ Kết nối Flutter với API
+    ├─ Test CRUD operations
+    └─ Fix bugs
+    ↓
+BƯỚC 8: Hoàn thiện
+    ↓
+    ├─ Error handling
+    ├─ Loading states
+    ├─ Pull to refresh
+    └─ UI/UX improvements
+```
+
+---
+
+### Kiến trúc lớp (Layered Architecture)
+
+```
+┌─────────────────────────────────────────┐
+│         PRESENTATION LAYER              │
+│  (UI - Screens, Widgets)                │
+│  - BookListScreen                        │
+│  - BookFormScreen                        │
+│  - BookCard                              │
+└──────────────┬──────────────────────────┘
+               │
+┌──────────────▼──────────────────────────┐
+│         STATE MANAGEMENT LAYER          │
+│  (Bloc, Provider)                       │
+│  - BookBloc (Event → State)             │
+│  - AuthProvider                          │
+│  - ThemeProvider                         │
+└──────────────┬──────────────────────────┘
+               │
+┌──────────────▼──────────────────────────┐
+│         BUSINESS LOGIC LAYER             │
+│  (Services)                              │
+│  - ApiService (HTTP calls)               │
+│  - Validation logic                      │
+└──────────────┬──────────────────────────┘
+               │
+┌──────────────▼──────────────────────────┐
+│         DATA LAYER                       │
+│  (Models)                                │
+│  - Book (fromJson/toJson)                │
+└──────────────┬──────────────────────────┘
+               │
+┌──────────────▼──────────────────────────┐
+│         NETWORK LAYER                    │
+│  (HTTP/JSON)                            │
+│  - HTTP Requests/Responses               │
+└─────────────────────────────────────────┘
+```
+
+**Nguyên tắc:**
+- ✅ **Tách biệt rõ ràng:** Mỗi layer chỉ biết layer bên dưới
+- ✅ **Dễ test:** Có thể test từng layer độc lập
+- ✅ **Dễ maintain:** Sửa một layer không ảnh hưởng layer khác
+- ✅ **Dễ scale:** Thêm feature mới không làm rối code cũ
 
 ---
 
@@ -3023,7 +3561,7 @@ builder.Services.AddCors(options =>
 2. **Logic đơn giản:** Chỉ cần get/set, không cần event phức tạp
 3. **Nhẹ:** Provider nhẹ hơn Bloc cho use case đơn giản
 
-### Luồng dữ liệu (Data Flow)
+### Luồng dữ liệu (Data Flow) - Tổng quan
 
 ```
 [UI Screen]
@@ -3039,15 +3577,89 @@ builder.Services.AddCors(options =>
 [UI Rebuild]
 ```
 
-### So sánh Bloc vs Provider
+### So sánh các phương pháp State Management
 
-| Đặc điểm | Bloc | Provider |
-|---------|------|----------|
-| **Phức tạp** | Cao (Event → State) | Thấp (Method → notifyListeners) |
-| **Use case** | Business logic phức tạp | State toàn cục đơn giản |
-| **Debug** | Rất tốt (biết event nào) | Tốt (biết method nào) |
-| **Learning curve** | Cao hơn | Thấp hơn |
-| **Ví dụ** | CRUD, Search, Filter | Auth, Theme, Settings |
+| Đặc điểm | setState | Provider | Bloc |
+|---------|----------|----------|------|
+| **Độ phức tạp** | Thấp nhất | Trung bình | Cao |
+| **Code lượng** | Ít nhất | Trung bình | Nhiều nhất |
+| **Chia sẻ state** | ❌ Khó | ✅ Dễ | ✅ Dễ |
+| **Debug** | ⚠️ Khó | ✅ Tốt | ✅✅ Rất tốt |
+| **Test** | ⚠️ Khó | ✅ Tốt | ✅✅ Rất tốt |
+| **Phù hợp** | App nhỏ | App trung bình | App lớn |
+| **Learning curve** | Dễ nhất | Dễ | Khó hơn |
+| **Ví dụ** | Todo app đơn giản | Shopping cart | E-commerce lớn |
+
+### Sơ đồ so sánh kiến trúc
+
+#### Kiến trúc với setState (Đơn giản)
+```
+┌─────────────────┐
+│  StatefulWidget │
+│                 │
+│  - State        │
+│  - setState()   │
+│  - API calls    │
+└─────────────────┘
+```
+
+#### Kiến trúc với Provider (Trung bình)
+```
+┌─────────────────┐
+│     Screen      │
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│    Provider     │
+│                 │
+│  - State        │
+│  - Methods      │
+│  - notifyListeners()
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│  API Service    │
+└─────────────────┘
+```
+
+#### Kiến trúc với Bloc (Phức tạp - Dùng trong bài này)
+```
+┌─────────────────┐
+│     Screen      │
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│      Bloc       │
+│                 │
+│  Event → State  │
+│  - LoadBooksEvent
+│  - BookLoaded   │
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│  API Service    │
+└─────────────────┘
+```
+
+### Quyết định chọn State Management
+
+```
+Bắt đầu với app mới
+    ↓
+    ├─ App nhỏ (< 3 màn hình)?
+    │   └─ → Dùng setState
+    │
+    ├─ Cần chia sẻ state giữa screens?
+    │   └─ → Dùng Provider
+    │
+    └─ Logic phức tạp, nhiều trạng thái?
+        └─ → Dùng Bloc
+```
+
+**Trong bài này:**
+- ✅ **Bloc** cho Book Management (CRUD phức tạp)
+- ✅ **Provider** cho Auth & Theme (state toàn cục đơn giản)
+- ✅ **Kết hợp** cả 2 để tận dụng ưu điểm của mỗi cái
 
 ---
 
@@ -3365,6 +3977,212 @@ Bạn đã hoàn thành một dự án thực tế kết hợp:
 3. **Thêm Favorites:** Đánh dấu sách yêu thích (dùng Provider)
 4. **Thêm Offline Mode:** Cache dữ liệu để xem khi không có mạng
 5. **Thêm Unit Tests:** Viết test cho Bloc và Provider
+6. **Nâng cấp lên Clean Architecture:** Xem [Bài 14 - Clean Architecture](14_thuc_hanh_clean_architecture.md)
+
+---
+
+## 🏗️ NÂNG CẤP LÊN CLEAN ARCHITECTURE
+
+> **💡 TÙY CHỌN NÂNG CAO**
+> 
+> Sau khi hoàn thành dự án này, bạn có thể nâng cấp lên Clean Architecture để code chuyên nghiệp hơn, dễ test và maintain hơn.
+
+### Tại sao cần nâng cấp?
+
+**Cấu trúc hiện tại (Feature-based):**
+```
+lib/
+├── models/
+├── services/
+├── providers/
+├── blocs/
+├── screens/
+└── widgets/
+```
+
+**Vấn đề:**
+- ⚠️ Tất cả code nằm chung, khó tìm
+- ⚠️ Logic nghiệp vụ lẫn với UI
+- ⚠️ Khó test từng phần độc lập
+- ⚠️ Khó thay đổi data source (API → Local DB)
+
+**Cấu trúc Clean Architecture:**
+```
+lib/
+├── core/                    # Shared code
+│   ├── constants/
+│   ├── errors/
+│   └── utils/
+├── features/
+│   └── books/
+│       ├── data/           # Data layer
+│       │   ├── datasources/
+│       │   ├── models/
+│       │   └── repositories/
+│       ├── domain/         # Business logic
+│       │   ├── entities/
+│       │   ├── repositories/
+│       │   └── usecases/
+│       └── presentation/   # UI layer
+│           ├── bloc/
+│           ├── pages/
+│           └── widgets/
+```
+
+**Lợi ích:**
+- ✅ Tách biệt rõ ràng: Data, Domain, Presentation
+- ✅ Dễ test: Test từng layer độc lập
+- ✅ Dễ thay đổi: Đổi API sang Local DB không ảnh hưởng UI
+- ✅ Dễ mở rộng: Thêm feature mới không làm rối code cũ
+- ✅ Chuyên nghiệp: Chuẩn công nghiệp, dễ bảo trì
+
+### So sánh cấu trúc
+
+**Hiện tại (Bài này):**
+```dart
+// UI gọi trực tiếp API Service
+class BookListScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => BookBloc()..add(LoadBooksEvent()),
+      // BookBloc gọi trực tiếp ApiService
+    );
+  }
+}
+
+// Bloc gọi Service
+class BookBloc extends Bloc<BookEvent, BookState> {
+  Future<void> _onLoadBooks(...) async {
+    final books = await ApiService.getBooks(); // ← Gọi trực tiếp
+    emit(BookLoaded(books));
+  }
+}
+```
+
+**Clean Architecture:**
+```dart
+// UI chỉ biết UseCase
+class BookListScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => BookBloc(getBooks: sl()), // ← Inject UseCase
+      // BookBloc gọi UseCase
+    );
+  }
+}
+
+// Bloc gọi UseCase
+class BookBloc extends Bloc<BookEvent, BookState> {
+  final GetBooks getBooks; // ← UseCase
+  
+  Future<void> _onLoadBooks(...) async {
+    final result = await getBooks(); // ← Gọi UseCase
+    result.fold(
+      (failure) => emit(BookError(failure.message)),
+      (books) => emit(BookLoaded(books)),
+    );
+  }
+}
+
+// UseCase gọi Repository
+class GetBooks {
+  final BookRepository repository;
+  
+  Future<Either<Failure, List<Book>>> call() {
+    return repository.getBooks(); // ← Gọi Repository
+  }
+}
+
+// Repository gọi DataSource
+class BookRepositoryImpl implements BookRepository {
+  final BookRemoteDataSource remoteDataSource;
+  
+  Future<Either<Failure, List<Book>>> getBooks() async {
+    try {
+      final models = await remoteDataSource.getBooks(); // ← Gọi DataSource
+      return Right(models.map((m) => m.toEntity()).toList());
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+}
+```
+
+### Bước nâng cấp
+
+**Bước 1: Tạo Domain Layer**
+- Tạo `entities/book.dart` (pure Dart class, không phụ thuộc framework)
+- Tạo `repositories/book_repository.dart` (interface)
+- Tạo `usecases/get_books.dart`
+
+**Bước 2: Tạo Data Layer**
+- Di chuyển `models/book.dart` → `data/models/book_model.dart`
+- Tạo `data/datasources/book_remote_data_source.dart`
+- Tạo `data/repositories/book_repository_impl.dart`
+
+**Bước 3: Cập nhật Presentation Layer**
+- Di chuyển `blocs/` → `presentation/bloc/`
+- Di chuyển `screens/` → `presentation/pages/`
+- Di chuyển `widgets/` → `presentation/widgets/`
+- Cập nhật Bloc để dùng UseCase thay vì Service trực tiếp
+
+**Bước 4: Dependency Injection**
+- Dùng `get_it` hoặc `provider` để inject dependencies
+- Tạo `injection/injection_container.dart`
+
+### Hướng dẫn chi tiết
+
+👉 **Xem [Bài 14 - Clean Architecture](14_thuc_hanh_clean_architecture.md)** để có hướng dẫn chi tiết từng bước nâng cấp dự án Book Management này lên Clean Architecture.
+
+### Kết luận
+
+**Cấu trúc hiện tại (Bài 10):**
+- ✅ Phù hợp cho app nhỏ/trung bình
+- ✅ Dễ hiểu, dễ làm theo
+- ✅ Đủ dùng cho hầu hết dự án
+
+**Clean Architecture (Bài 14):**
+- ✅ Phù hợp cho app lớn
+- ✅ Chuyên nghiệp, chuẩn công nghiệp
+- ✅ Dễ test, dễ maintain, dễ scale
+
+**Lời khuyên:**
+- Bắt đầu với cấu trúc của Bài 10 (đơn giản hơn)
+- Khi app lớn hơn, refactor lên Clean Architecture (Bài 14)
+- Hoặc học cả 2 để hiểu sự khác biệt và chọn cái phù hợp
+
+### Mapping code từ Bài 10 sang Clean Architecture
+
+**Bảng chuyển đổi:**
+
+| Bài 10 (Feature-based) | Clean Architecture |
+|------------------------|-------------------|
+| `models/book.dart` | `domain/entities/book.dart` + `data/models/book_model.dart` |
+| `services/api_service.dart` | `data/datasources/book_remote_data_source.dart` |
+| `blocs/book/book_bloc.dart` | `presentation/bloc/book_bloc.dart` (refactor dùng UseCase) |
+| `screens/book_list_screen.dart` | `presentation/pages/book_list_page.dart` |
+| `widgets/book_card.dart` | `presentation/widgets/book_card.dart` |
+| `providers/auth_provider.dart` | `features/auth/presentation/providers/auth_provider.dart` |
+| Tạo Bloc trực tiếp | Inject qua `get_it` container |
+
+**Luồng refactor:**
+```
+Bài 10 (Hoàn thành)
+    ↓
+Đọc Bài 14
+    ↓
+Backup code Bài 10
+    ↓
+Tạo cấu trúc mới (core/, features/)
+    ↓
+Di chuyển và refactor từng file
+    ↓
+Test và verify
+    ↓
+Clean Architecture (Hoàn thành)
+```
 
 ---
 
@@ -3374,6 +4192,7 @@ Bạn đã hoàn thành một dự án thực tế kết hợp:
 - [Provider Package](https://pub.dev/packages/provider)
 - [.NET Web API Documentation](https://learn.microsoft.com/en-us/aspnet/core/web-api/)
 - [Entity Framework Core](https://learn.microsoft.com/en-us/ef/core/)
+- [Clean Architecture - Bài 14](14_thuc_hanh_clean_architecture.md) - Nâng cấp dự án này lên Clean Architecture
 
 ---
 

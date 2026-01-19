@@ -74,12 +74,16 @@
 ## 🟡 PHẦN II: FLUTTER TRUNG CẤP
 
 ### ✅ Chương 10: HTTP API & Networking
-- **Lý thuyết:** [10_http_api.md](../10_http_api.md)
+- **Lý thuyết:** [10_http_api_networking.md](../10_http_api_networking.md)
 - **Thực hành:** 
-  - [10_thuc_hanh_http_api.md](10_thuc_hanh_http_api.md) ✅ (Cần tạo - đơn giản)
-  - [10_thuc_hanh_api_dotnet.md](10_thuc_hanh_api_dotnet.md) ✅ (Dự án thực tế)
-- **Mục tiêu:** Gọi API, xử lý JSON, kết hợp Bloc+Provider
-- **Thời gian:** 4-8 giờ
+  - [10_thuc_hanh_http_api.md](10_thuc_hanh_http_api.md) ✅ (Đơn giản - FutureBuilder)
+  - [10b_thuc_hanh_du_an_tong_hop_bloc_provider_api.md](10b_thuc_hanh_du_an_tong_hop_bloc_provider_api.md) ✅ (Dự án tổng hợp - Bloc + Provider + .NET API)
+- **Mục tiêu:** 
+  - Bài 10: Gọi API đơn giản với FutureBuilder
+  - Bài 10b: Dự án thực tế kết hợp Bloc + Provider + .NET Web API
+- **Thời gian:** 
+  - Bài 10: 1-2 giờ
+  - Bài 10b: 4-6 giờ
 
 ### ⚠️ Chương 11: Local Storage
 - **Lý thuyết:** [11_local_storage.md](../11_local_storage.md)
