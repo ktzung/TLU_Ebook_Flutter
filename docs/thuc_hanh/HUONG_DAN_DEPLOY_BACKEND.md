@@ -357,3 +357,231 @@ docker compose logs -f
 -   **Database Connection**: API đăng nhập/đăng ký thành công -> DB hoạt động tốt.
 -   **SSL**: Truy cập được `https://...` không bị báo đỏ.
 -   **Docker Share**: Nhờ một bạn khác pull image về chạy thử thành công.
+
+---
+
+## PHẦN A3: TÌNH HUỐNG NÂNG CAO - 1 VPS CHO 3 NGƯỜI DÙNG (Multi-Tenant)
+
+> **Bối cảnh thực tế**: Trong một nhóm bài tập lớn (ví dụ 3 thành viên), để tiết kiệm chi phí, nhóm có thể mua chung **1 VPS cấu hình tốt** (4GB RAM) thay vì 3 VPS cấu hình thấp. Mỗi thành viên sẽ sở hữu **1 tên miền riêng** và chạy project backend của riêng mình trên cùng VPS đó mà không ảnh hưởng lẫn nhau.
+
+### 1. Quy hoạch hệ thống
+Giả sử nhóm có 3 thành viên: **Tùng**, **Cúc**, **Trúc**.
+Chúng ta sẽ quy hoạch tài nguyên như sau:
+
+| Thành viên | User Linux | Domain (Ví dụ) | Port ứng dụng (Kestrel) | Database Name |
+| :--- | :--- | :--- | :--- | :--- |
+| **System Admin** | `root` | (Quản lý chung) | - | (Quản trị chung) |
+| **Tùng** | `tung_user` | `tung-dev.com` | `5001` | `DB_Tung` |
+| **Cúc** | `cuc_user` | `cuc-store.net` | `5002` | `DB_Cuc` |
+| **Trúc** | `truc_api.org` | `api.truc-app.org` | `5003` | `DB_Truc` |
+
+Hệ thống hoạt động theo cơ chế **Reverse Proxy**:
+1.  **Nginx** đứng ở cửa ngõ (Port 80/443).
+2.  Khi có request tới `tung-dev.com` -> Nginx chuyển tiếp vào Port `5001`.
+3.  Khi có request tới `cuc-store.net` -> Nginx chuyển tiếp vào Port `5002`.
+
+---
+
+### Bước 1: Tạo User riêng biệt (Thực hiện bởi Root)
+Để đảm bảo bảo mật và tránh việc "lỡ tay" xóa nhầm code của nhau, mỗi người sẽ có 1 tài khoản Linux riêng.
+
+Kết nối SSH bằng quyền `root`, sau đó chạy:
+
+```bash
+# Tạo user cho Tùng
+adduser tung_user
+# Nhập password cho Tùng, các thông tin khác có thể Enter bỏ qua
+
+# Tạo user cho Cúc
+adduser cuc_user
+
+# Tạo user cho Trúc
+adduser truc_user
+
+# (Tùy chọn) Nếu muốn cấp quyền sudo cho user (để họ tự cài phần mềm phụ)
+usermod -aG sudo tung_user
+```
+
+👉 **Kết quả**: Lúc này trên VPS có 3 thư mục riêng biệt: `/home/tung_user`, `/home/cuc_user`, `/home/truc_user`. Code của ai người nấy giữ.
+
+---
+
+### Bước 2: Cấu hình SQL Server (Phân quyền Database)
+Chúng ta dùng chung 1 SQL Server instance, nhưng tạo 3 Database và 3 tài khoản SQL riêng biệt để bảo mật.
+
+Kết nối vào SQL Server từ terminal (bằng tài khoản `sa`):
+```bash
+sqlcmd -S localhost -U sa -P 'MatKhauSA_CucManh!!!'
+```
+
+Trong giao diện `1>` của sqlcmd, thực hiện các lệnh sau (gõ từng cụm rồi gõ `GO` để thực thi):
+
+```sql
+-- 1. Tạo Database riêng
+CREATE DATABASE DB_Tung;
+CREATE DATABASE DB_Cuc;
+CREATE DATABASE DB_Truc;
+GO
+
+-- 2. Tạo Login riêng (Tài khoản để đăng nhập)
+CREATE LOGIN Login_Tung WITH PASSWORD = 'UserTung@123';
+CREATE LOGIN Login_Cuc  WITH PASSWORD = 'UserCuc@123';
+CREATE LOGIN Login_Truc WITH PASSWORD = 'UserTruc@123';
+GO
+
+-- 3. Tạo User trong Database và gán quyền (Mapping Login -> DB User)
+-- Cho Tùng
+USE DB_Tung;
+CREATE USER User_Tung FOR LOGIN Login_Tung;
+ALTER ROLE db_owner ADD MEMBER User_Tung; -- Tùng toàn quyền trên DB này
+GO
+
+-- Cho Cúc
+USE DB_Cuc;
+CREATE USER User_Cuc FOR LOGIN Login_Cuc;
+ALTER ROLE db_owner ADD MEMBER User_Cuc;
+GO
+
+-- Cho Trúc
+USE DB_Truc;
+CREATE USER User_Truc FOR LOGIN Login_Truc;
+ALTER ROLE db_owner ADD MEMBER User_Truc;
+GO
+
+-- Thoát
+QUIT
+```
+
+👉 **Lưu ý**: Trong `appsettings.json` của Tùng, Connection String sẽ là:
+`Server=localhost;Database=DB_Tung;User Id=Login_Tung;Password=UserTung@123;...`
+
+---
+
+### Bước 3: Deploy ứng dụng từng người
+
+Quy trình này lặp lại cho từng người. Ví dụ làm mẫu cho **Tùng** (`tung_user`, Port `5001`).
+
+1.  **Đăng nhập SSH** bằng tài khoản `tung_user` (Không dùng root).
+2.  **Upload code**: Tạo thư mục `www` tại `/home/tung_user/www` và upload code (đã publish) vào đó.
+3.  **Tạo Service Systemd**:
+    Do `tung_user` không có quyền tạo file trong `/etc/systemd/...`, việc này cần nhờ **Root** làm hoặc dùng `sudo`.
+
+    **Thao tác (Quyền Root/Sudo):**
+    ```bash
+    sudo nano /etc/systemd/system/kestrel-tung.service
+    ```
+
+    Nội dung file service cho Tùng (Chú ý dòng `Environment=ASPNETCORE_URLS` để đổi port):
+    ```ini
+    [Unit]
+    Description=API Service for Tung
+    
+    [Service]
+    WorkingDirectory=/home/tung_user/www
+    ExecStart=/usr/bin/dotnet /home/tung_user/www/TungProject.dll
+    Restart=always
+    RestartSec=10
+    SyslogIdentifier=dotnet-tung
+    User=tung_user
+    
+    # QUAN TRỌNG: Chạy ứng dụng riêng của Tùng ở Port 5001
+    Environment=ASPNETCORE_URLS=http://localhost:5001
+    Environment=ASPNETCORE_ENVIRONMENT=Production
+    
+    [Install]
+    WantedBy=multi-user.target
+    ```
+
+    Start service:
+    ```bash
+    sudo systemctl enable kestrel-tung.service
+    sudo systemctl start kestrel-tung.service
+    ```
+
+👉 **Làm tương tự cho Cúc (Port 5002) và Trúc (Port 5003)**.
+
+---
+
+### Bước 4: Cấu hình Nginx (Reverse Proxy cho nhiều domain)
+
+Đây là bước "ghép nối". **Root** sẽ cấu hình Nginx để điều phối traffic.
+
+Mở file cấu hình default:
+```bash
+sudo nano /etc/nginx/sites-available/default
+```
+
+Thay vì 1 block `server`, chúng ta sẽ khai báo **3 block server** riêng biệt trong cùng 1 file (hoặc tách ra nhiều file nếu muốn chuyên nghiệp hơn).
+
+```nginx
+# --- SERVER BLOCK CHO TÙNG ---
+server {
+    listen 80;
+    server_name tung-dev.com www.tung-dev.com;
+
+    location / {
+        proxy_pass http://localhost:5001; # Trỏ vào Port của Tùng
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection keep-alive;
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# --- SERVER BLOCK CHO CÚC ---
+server {
+    listen 80;
+    server_name cuc-store.net www.cuc-store.net;
+
+    location / {
+        proxy_pass http://localhost:5002; # Trỏ vào Port của Cúc
+        # ... (các dòng proxy_set_header COPY y hệt ở trên) ...
+    }
+}
+
+# --- SERVER BLOCK CHO TRÚC ---
+server {
+    listen 80;
+    server_name api.truc-app.org;
+
+    location / {
+        proxy_pass http://localhost:5003; # Trỏ vào Port của Trúc
+         # ... (các dòng proxy_set_header COPY y hệt ở trên) ...
+    }
+}
+```
+
+Lưu file và reload Nginx:
+```bash
+sudo nginx -t
+sudo nginx -s reload
+```
+
+---
+
+### Bước 5: Cài đặt SSL cho cả 3 Domain
+
+Chạy Certbot lần lượt cho từng domain hoặc chạy 1 lệnh gộp (khuyên dùng chạy lần lượt cho dễ quản lý lỗi).
+
+```bash
+# Cài SSL cho Tùng
+sudo certbot --nginx -d tung-dev.com -d www.tung-dev.com
+
+# Cài SSL cho Cúc
+sudo certbot --nginx -d cuc-store.net
+
+# Cài SSL cho Trúc
+sudo certbot --nginx -d api.truc-app.org
+```
+
+### Tổng kết
+1.  **Tiết kiệm**: Share tiền VPS (ví dụ 300k/tháng -> mỗi người 100k).
+2.  **Độc lập**:
+    *   Tùng hỏng Code? Web Cúc vẫn chạy.
+    *   Trúc reset Database? DB của Tùng vẫn nguyên.
+3.  **Bảo mật**: Tùng login SSH không xem được file của Cúc (nếu setup permission kỹ file permissions 700).
+
+Chúc các bạn triển khai Teamwork thành công!
